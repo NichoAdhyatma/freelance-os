@@ -19,10 +19,16 @@ export function TableSearchBar({
   placeholder = 'Search...',
   className,
 }: TableSearchBarProps) {
+  // Fully controlled: localValue always mirrors the external value prop.
+  // This ensures the input field ALWAYS reflects the parent's state,
+  // including when parent resets search to ''.
   const [localValue, setLocalValue] = useState(value);
-  const lastEmittedRef = useRef<string>(value);
+  const lastEmittedRef = useRef(value);
 
-  // Sync when parent resets value externally (e.g. reset from empty state)
+  // Sync from parent — triggered when value prop changes (e.g. reset from empty state).
+  // Intentionally only tracks `value` dep; `localValue` dep is excluded to avoid
+  // a loop where syncing triggers a sync. The `value` dep is what matters — it fires
+  // when the parent resets search externally.
   useEffect(() => {
     setLocalValue(value);
     lastEmittedRef.current = value;
@@ -30,13 +36,18 @@ export function TableSearchBar({
 
   const debouncedValue = useDebounce(localValue, 300);
 
-  // Emit to parent only when user actually typed something new
   useEffect(() => {
     if (debouncedValue !== lastEmittedRef.current) {
       lastEmittedRef.current = debouncedValue;
       onChange(debouncedValue);
     }
   }, [debouncedValue, onChange]);
+
+  const handleClear = () => {
+    setLocalValue('');
+    lastEmittedRef.current = '';
+    onChange('');
+  };
 
   return (
     <div className={className}>
@@ -50,12 +61,7 @@ export function TableSearchBar({
         />
         {localValue && (
           <button
-            onClick={() => {
-              setLocalValue('');
-              lastEmittedRef.current = '';
-              // Emit immediately on clear — bypass debounce so parent updates right away
-              onChange('');
-            }}
+            onClick={handleClear}
             className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
           >
             <X className="h-4 w-4" />
