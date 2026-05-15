@@ -6,6 +6,8 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ClientForm } from '@/components/clients/ClientForm';
+import { SortIcon } from '@/components/dashboard/SortIcon';
+import { SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,32 +23,17 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useProjects } from '@/hooks/useProjects';
+import { setDashboardTitle } from '@/app/dashboard/_context';
 import { formatIDR } from '@/lib/utils';
 import { type Client, type ClientFormData } from '@/types/client';
 
-type SortField = 'recent' | 'name' | 'revenue';
-type SortDir = 'asc' | 'desc';
+type SortField = 'recent' | 'name' | 'revenue' | null;
+type SortDir = 'asc' | 'desc' | null;
 const PAGE_SIZE = 10;
 
-function SortIcon({
-  field,
-  activeField,
-  dir,
-}: {
-  field: SortField;
-  activeField: SortField;
-  dir: SortDir;
-}) {
-  if (activeField !== field)
-    return <span className="text-muted-foreground/30 ml-1 text-xs">↕</span>;
-  return dir === 'asc' ? (
-    <span className="text-primary ml-1 text-xs">↑</span>
-  ) : (
-    <span className="text-primary ml-1 text-xs">↓</span>
-  );
-}
-
 export default function ClientsPage() {
+  setDashboardTitle('Clients');
+
   const { clients, loading, addClient, editClient, removeClient, total, totalRevenue } =
     useClients();
   const { projects } = useProjects();
@@ -56,10 +43,18 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'has_projects'>('all');
   const [sortField, setSortField] = useState<SortField>('recent');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search, 300);
+
+  // Stats
+  const stats = useMemo(() => {
+    const now = new Date();
+    const activeClients = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
+    const avgRevenue = total > 0 ? Math.round(totalRevenue / total) : 0;
+    return { total, totalRevenue, activeClients, avgRevenue };
+  }, [clients, total, totalRevenue]);
 
   // Project count per client
   const clientProjectCount = useMemo(() => {
@@ -70,11 +65,17 @@ export default function ClientsPage() {
     return counts;
   }, [projects]);
 
-  const handleSort = (field: SortField) => {
+  // Sort handler — cycles: asc → desc → clear
+  const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      if (sortDir === 'asc') {
+        setSortDir('desc');
+      } else {
+        setSortField('recent');
+        setSortDir(null);
+      }
     } else {
-      setSortField(field);
+      setSortField(field as SortField);
       setSortDir('asc');
     }
     setPage(1);
@@ -83,7 +84,6 @@ export default function ClientsPage() {
   const filtered = useMemo(() => {
     let result = clients;
 
-    // Search
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(
@@ -94,12 +94,10 @@ export default function ClientsPage() {
       );
     }
 
-    // Tab filter
     if (filter === 'has_projects') {
       result = result.filter((c) => (clientProjectCount[c.id] || 0) > 0);
     }
 
-    // Sort
     const sorted = [...result];
     if (sortField === 'name') {
       sorted.sort((a, b) =>
@@ -166,14 +164,15 @@ export default function ClientsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-32" />
+        <div className="flex items-center justify-end">
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="flex items-center gap-6">
-          <Skeleton className="h-12 w-32" />
-          <Skeleton className="h-12 w-48" />
-        </div>
+        <SummaryCardGrid>
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </SummaryCardGrid>
+        <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 rounded-xl" />
       </div>
     );
@@ -181,26 +180,45 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+      {/* Header */}
+      <div className="flex items-center justify-end">
         <Button onClick={handleOpenNew}>
           <Plus className="mr-2 h-4 w-4" />
           Add Client
         </Button>
       </div>
 
-      {/* Minimal Stats */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold">{total}</span>
-          <span className="text-muted-foreground text-sm">Total Clients</span>
+      {/* Summary Stats */}
+      <SummaryCardGrid>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Clients</p>
+            <p className="text-3xl font-bold tracking-tight">{stats.total}</p>
+          </div>
+          <Users className="text-muted-foreground h-8 w-8" />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold">{formatIDR(totalRevenue)}</span>
-          <span className="text-muted-foreground text-sm">Total Revenue</span>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Revenue</p>
+            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.totalRevenue)}</p>
+          </div>
+          <Users className="text-green-500 h-8 w-8" />
         </div>
-      </div>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Active Clients</p>
+            <p className="text-3xl font-bold tracking-tight">{stats.activeClients}</p>
+          </div>
+          <Users className="text-blue-500 h-8 w-8" />
+        </div>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Avg Revenue</p>
+            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.avgRevenue)}</p>
+          </div>
+          <Users className="text-purple-500 h-8 w-8" />
+        </div>
+      </SummaryCardGrid>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -266,13 +284,18 @@ export default function ClientsPage() {
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground w-12 text-xs font-medium">#</TableHead>
-                <TableHead
-                  className="text-muted-foreground cursor-pointer text-xs font-medium"
-                  onClick={() => handleSort('name')}
-                >
-                  <span className="flex items-center">
-                    Name
-                    <SortIcon field="name" activeField={sortField} dir={sortDir} />
+                <TableHead className="text-muted-foreground text-xs font-medium">
+                  <span
+                    className="flex cursor-pointer items-center"
+                    onClick={() => handleSort('name')}
+                  >
+                    Name{' '}
+                    <SortIcon
+                      field="name"
+                      sortField={sortField}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
                   </span>
                 </TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Company</TableHead>
@@ -280,13 +303,18 @@ export default function ClientsPage() {
                 <TableHead className="text-muted-foreground text-xs font-medium">
                   Projects
                 </TableHead>
-                <TableHead
-                  className="text-muted-foreground cursor-pointer text-xs font-medium"
-                  onClick={() => handleSort('revenue')}
-                >
-                  <span className="flex items-center">
-                    Revenue
-                    <SortIcon field="revenue" activeField={sortField} dir={sortDir} />
+                <TableHead className="text-muted-foreground text-xs font-medium">
+                  <span
+                    className="flex cursor-pointer items-center"
+                    onClick={() => handleSort('revenue')}
+                  >
+                    Revenue{' '}
+                    <SortIcon
+                      field="revenue"
+                      sortField={sortField}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
                   </span>
                 </TableHead>
                 <TableHead className="text-muted-foreground w-20 text-xs font-medium">

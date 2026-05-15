@@ -12,7 +12,6 @@ import {
   Search,
   Send,
   Trash2,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -20,6 +19,8 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { InvoiceForm } from '@/components/invoices/InvoiceForm';
+import { SortIcon } from '@/components/dashboard/SortIcon';
+import { SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,12 +45,13 @@ import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
+import { setDashboardTitle } from '@/app/dashboard/_context';
 import { formatIDR } from '@/lib/utils';
 import { type InvoiceStatus } from '@/types/invoice';
 
 type StatusFilter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
-type SortField = 'recent' | 'amount' | 'due';
-type SortDir = 'asc' | 'desc';
+type SortField = 'recent' | 'amount' | 'due' | null;
+type SortDir = 'asc' | 'desc' | null;
 const PAGE_SIZE = 10;
 
 const STATUS_CONFIG: Record<InvoiceStatus, { label: string; color: string }> = {
@@ -61,25 +63,9 @@ const STATUS_CONFIG: Record<InvoiceStatus, { label: string; color: string }> = {
   cancelled: { label: 'Cancelled', color: 'bg-muted text-muted-foreground' },
 };
 
-function SortIcon({
-  field,
-  activeField,
-  dir,
-}: {
-  field: SortField;
-  activeField: SortField;
-  dir: SortDir;
-}) {
-  if (activeField !== field)
-    return <span className="text-muted-foreground/30 ml-1 text-xs">↕</span>;
-  return dir === 'asc' ? (
-    <span className="text-primary ml-1 text-xs">↑</span>
-  ) : (
-    <span className="text-primary ml-1 text-xs">↓</span>
-  );
-}
-
 export default function FinancePage() {
+  setDashboardTitle('Finance');
+
   const { invoices, loading, add, edit, remove } = useInvoices();
   const { getClientById } = useClients();
   const { projects } = useProjects();
@@ -94,12 +80,42 @@ export default function FinancePage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
-  const handleSort = (field: SortField) => {
+  // Stats
+  const stats = useMemo(() => {
+    const totalRevenue = invoices
+      .filter((i) => i.status === 'paid')
+      .reduce((sum, i) => sum + i.amount, 0);
+    const outstanding = invoices
+      .filter((i) => i.status === 'sent' || i.status === 'overdue' || i.status === 'pending')
+      .reduce((sum, i) => sum + i.amount, 0);
+    const overdue = invoices.filter((i) => i.status === 'overdue').length;
+    const draft = invoices.filter((i) => i.status === 'draft').length;
+    return { totalRevenue, outstanding, overdue, draft };
+  }, [invoices]);
+
+  const statusCounts = useMemo(
+    () => ({
+      total: invoices.length,
+      draft: invoices.filter((i) => i.status === 'draft').length,
+      sent: invoices.filter((i) => i.status === 'sent').length,
+      paid: invoices.filter((i) => i.status === 'paid').length,
+      overdue: invoices.filter((i) => i.status === 'overdue').length,
+    }),
+    [invoices],
+  );
+
+  // Sort handler — cycles: asc → desc → clear
+  const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      if (sortDir === 'asc') {
+        setSortDir('desc');
+      } else {
+        setSortField('recent');
+        setSortDir(null);
+      }
     } else {
-      setSortField(field);
-      setSortDir('desc');
+      setSortField(field as SortField);
+      setSortDir('asc');
     }
     setPage(1);
   };
@@ -130,22 +146,6 @@ export default function FinancePage() {
   const start = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  const totalRevenue = invoices
-    .filter((i) => i.status === 'paid')
-    .reduce((sum, i) => sum + i.amount, 0);
-
-  const outstanding = invoices
-    .filter((i) => i.status === 'sent' || i.status === 'overdue' || i.status === 'pending')
-    .reduce((sum, i) => sum + i.amount, 0);
-
-  const stats = {
-    total: invoices.length,
-    draft: invoices.filter((i) => i.status === 'draft').length,
-    sent: invoices.filter((i) => i.status === 'sent').length,
-    paid: invoices.filter((i) => i.status === 'paid').length,
-    overdue: invoices.filter((i) => i.status === 'overdue').length,
-  };
 
   const handleOpenNew = () => {
     setEditingInvoice(null);
@@ -203,14 +203,15 @@ export default function FinancePage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-32" />
+        <div className="flex items-center justify-end">
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="flex items-center gap-6">
-          <Skeleton className="h-12 w-40" />
-          <Skeleton className="h-12 w-40" />
-        </div>
+        <SummaryCardGrid>
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </SummaryCardGrid>
+        <Skeleton className="h-10 w-80" />
         <Skeleton className="h-96 rounded-xl" />
       </div>
     );
@@ -218,25 +219,69 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
+      {/* Header */}
+      <div className="flex items-center justify-end">
         <Button onClick={handleOpenNew}>
           <Plus className="mr-2 h-4 w-4" />
           New Invoice
         </Button>
       </div>
 
-      {/* Minimal Stats */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold">{formatIDR(totalRevenue)}</span>
-          <span className="text-muted-foreground text-sm">Total Revenue</span>
+      {/* Summary Stats */}
+      <SummaryCardGrid>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Revenue</p>
+            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.totalRevenue)}</p>
+          </div>
+          <Receipt className="text-green-500 h-8 w-8" />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold">{formatIDR(outstanding)}</span>
-          <span className="text-muted-foreground text-sm">Outstanding</span>
+        <div className="bg-card borderBorder flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Outstanding</p>
+            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.outstanding)}</p>
+          </div>
+          <Receipt className="text-yellow-500 h-8 w-8" />
         </div>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Sent</p>
+            <p className="text-3xl font-bold tracking-tight">{statusCounts.sent}</p>
+          </div>
+          <Receipt className="text-blue-500 h-8 w-8" />
+        </div>
+        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs font-medium">Overdue</p>
+            <p className="text-3xl font-bold tracking-tight">{stats.overdue}</p>
+          </div>
+          <Receipt className="text-red-500 h-8 w-8" />
+        </div>
+      </SummaryCardGrid>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+        <Input
+          placeholder="Search by invoice number..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          className="pr-8 pl-9"
+        />
+        {search && (
+          <button
+            onClick={() => {
+              setSearch('');
+              setPage(1);
+            }}
+            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {/* Status Filter Tabs */}
@@ -248,11 +293,11 @@ export default function FinancePage() {
         }}
       >
         <TabsList>
-          <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
-          <TabsTrigger value="draft">Draft ({stats.draft})</TabsTrigger>
-          <TabsTrigger value="sent">Sent ({stats.sent})</TabsTrigger>
-          <TabsTrigger value="paid">Paid ({stats.paid})</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue ({stats.overdue})</TabsTrigger>
+          <TabsTrigger value="all">All ({statusCounts.total})</TabsTrigger>
+          <TabsTrigger value="draft">Draft ({statusCounts.draft})</TabsTrigger>
+          <TabsTrigger value="sent">Sent ({statusCounts.sent})</TabsTrigger>
+          <TabsTrigger value="paid">Paid ({statusCounts.paid})</TabsTrigger>
+          <TabsTrigger value="overdue">Overdue ({statusCounts.overdue})</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -286,22 +331,32 @@ export default function FinancePage() {
                 </TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Client</TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Project</TableHead>
-                <TableHead
-                  className="text-muted-foreground cursor-pointer text-xs font-medium"
-                  onClick={() => handleSort('amount')}
-                >
-                  <span className="flex items-center">
-                    Amount
-                    <SortIcon field="amount" activeField={sortField} dir={sortDir} />
+                <TableHead className="text-muted-foreground text-xs font-medium">
+                  <span
+                    className="flex cursor-pointer items-center"
+                    onClick={() => handleSort('amount')}
+                  >
+                    Amount{' '}
+                    <SortIcon
+                      field="amount"
+                      sortField={sortField}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
                   </span>
                 </TableHead>
-                <TableHead
-                  className="text-muted-foreground cursor-pointer text-xs font-medium"
-                  onClick={() => handleSort('due')}
-                >
-                  <span className="flex items-center">
-                    Due Date
-                    <SortIcon field="due" activeField={sortField} dir={sortDir} />
+                <TableHead className="text-muted-foreground text-xs font-medium">
+                  <span
+                    className="flex cursor-pointer items-center"
+                    onClick={() => handleSort('due')}
+                  >
+                    Due Date{' '}
+                    <SortIcon
+                      field="due"
+                      sortField={sortField}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
                   </span>
                 </TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
@@ -324,7 +379,7 @@ export default function FinancePage() {
                     <TableCell className="text-muted-foreground py-3 text-sm">
                       {start + idx}
                     </TableCell>
-                    <TableCell className="text-muted-foreground py-3 font-mono text-sm">
+                    <TableCell className="font-mono text-muted-foreground py-3 text-sm">
                       {inv.invoiceNumber}
                     </TableCell>
                     <TableCell className="max-w-[160px] py-3">
