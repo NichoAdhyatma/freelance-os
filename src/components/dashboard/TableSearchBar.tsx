@@ -1,10 +1,9 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { Input } from '@/components/ui/input';
-import { useDebounce } from '@/hooks/useDebounce';
 
 interface TableSearchBarProps {
   value: string;
@@ -19,33 +18,24 @@ export function TableSearchBar({
   placeholder = 'Search...',
   className,
 }: TableSearchBarProps) {
-  // Fully controlled: localValue always mirrors the external value prop.
-  // This ensures the input field ALWAYS reflects the parent's state,
-  // including when parent resets search to ''.
+  // Fully controlled — always reflect parent value.
+  // Debouncing lives in the parent (useDebounce), not here.
   const [localValue, setLocalValue] = useState(value);
-  const lastEmittedRef = useRef(value);
 
-  // Sync from parent — triggered when value prop changes (e.g. reset from empty state).
-  // Intentionally only tracks `value` dep; `localValue` dep is excluded to avoid
-  // a loop where syncing triggers a sync. The `value` dep is what matters — it fires
-  // when the parent resets search externally.
-  useEffect(() => {
+  // Keep local in sync when parent resets search (e.g. empty state reset)
+  if (localValue !== value) {
     setLocalValue(value);
-    lastEmittedRef.current = value;
-  }, [value]);
+  }
 
-  const debouncedValue = useDebounce(localValue, 300);
-
-  useEffect(() => {
-    if (debouncedValue !== lastEmittedRef.current) {
-      lastEmittedRef.current = debouncedValue;
-      onChange(debouncedValue);
-    }
-  }, [debouncedValue, onChange]);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value;
+    setLocalValue(next);
+    // Emit immediately — parent has its own debounce
+    onChange(next);
+  };
 
   const handleClear = () => {
     setLocalValue('');
-    lastEmittedRef.current = '';
     onChange('');
   };
 
@@ -56,7 +46,7 @@ export function TableSearchBar({
         <Input
           placeholder={placeholder}
           value={localValue}
-          onChange={(e) => setLocalValue(e.target.value)}
+          onChange={handleChange}
           className="pr-8 pl-9"
         />
         {localValue && (
