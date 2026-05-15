@@ -1,11 +1,11 @@
 'use client';
 
-import { Mail, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { Mail, Plus, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { ClientForm } from '@/components/clients/ClientForm';
+import { ClientInlineRow } from '@/components/clients/ClientInlineRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
@@ -27,7 +27,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useProjects } from '@/hooks/useProjects';
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { formatIDR } from '@/lib/utils';
-import { type Client, type ClientFormData } from '@/types/client';
+import { type ClientFormData } from '@/types/client';
 
 type SortField = 'recent' | 'name' | 'revenue' | null;
 type SortDir = 'asc' | 'desc' | null;
@@ -36,12 +36,11 @@ const PAGE_SIZE = 10;
 export default function ClientsPage() {
   setDashboardTitle('Clients');
 
-  const { clients, loading, addClient, editClient, removeClient, total, totalRevenue } =
+  const { clients, loading, addClient, removeClient, total, totalRevenue } =
     useClients();
   const { projects } = useProjects();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [addingRow, setAddingRow] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'has_projects'>('all');
   const [sortField, setSortField] = useState<SortField>('recent');
@@ -122,15 +121,9 @@ export default function ClientsPage() {
 
   const hasProjectsCount = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
 
-  const handleOpenNew = () => {
-    setEditingClient(null);
-    setFormOpen(true);
-  };
+  const handleOpenNew = () => setAddingRow(true);
 
-  const handleEdit = (client: Client) => {
-    setEditingClient(client);
-    setFormOpen(true);
-  };
+  const handleCancelAdd = () => setAddingRow(false);
 
   const handleDelete = async (id: string) => {
     const projCount = clientProjectCount[id] || 0;
@@ -147,17 +140,13 @@ export default function ClientsPage() {
     }
   };
 
-  const handleSubmit = async (data: ClientFormData) => {
+  const handleSubmitInline = async (data: ClientFormData) => {
     try {
-      if (editingClient) {
-        await editClient(editingClient.id, data);
-        toast.success('Client updated');
-      } else {
-        await addClient(data);
-        toast.success('Client added');
-      }
+      await addClient(data);
+      toast.success('Client added');
+      setAddingRow(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save client');
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
       throw err;
     }
   };
@@ -291,6 +280,13 @@ export default function ClientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {addingRow && (
+                <ClientInlineRow
+                  mode="add"
+                  onSave={handleSubmitInline}
+                  onCancel={handleCancelAdd}
+                />
+              )}
               {paginated.map((client, idx) => {
                 const projectCount = clientProjectCount[client.id] || 0;
                 return (
@@ -352,14 +348,6 @@ export default function ClientsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleEdit(client)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
                           className="text-destructive hover:text-destructive h-7 w-7"
                           onClick={() => handleDelete(client.id)}
                         >
@@ -414,12 +402,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      <ClientForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onSubmit={handleSubmit}
-        initialData={editingClient}
-      />
-    </div>
+          </div>
   );
 }
