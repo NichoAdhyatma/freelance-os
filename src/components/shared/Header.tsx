@@ -16,11 +16,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { getDashboardTitle } from '@/app/dashboard/_context';
+import { useDashboardTitle } from '@/app/dashboard/_context';
 
 export function Header() {
   const { user, userProfile, signOut } = useAuth();
-  const title = getDashboardTitle();
+  const title = useDashboardTitle();
   const router = useRouter();
 
   const getInitials = (name: string) => {
