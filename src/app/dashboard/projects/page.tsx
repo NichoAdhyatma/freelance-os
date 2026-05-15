@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -177,20 +178,7 @@ export default function ProjectsPage() {
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-end">
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <SummaryCardGrid>
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </SummaryCardGrid>
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 rounded-xl" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -247,7 +235,7 @@ export default function ProjectsPage() {
       {/* Table or Empty State */}
       {paginated.length === 0 ? (
         <EmptyState
-          icon={<FolderKanban className="h-16 w-16" />}
+          variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No projects found' : 'No projects yet'}
           description={
             search

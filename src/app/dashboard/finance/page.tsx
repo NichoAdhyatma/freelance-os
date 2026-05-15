@@ -23,6 +23,7 @@ import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,20 +201,7 @@ export default function FinancePage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-end">
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <SummaryCardGrid>
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </SummaryCardGrid>
-        <Skeleton className="h-10 w-80" />
-        <Skeleton className="h-96 rounded-xl" />
-      </div>
-    );
+    return <PageSkeleton showSearch={false} />;
   }
 
   return (
@@ -288,7 +276,7 @@ export default function FinancePage() {
       {/* Table */}
       {paginated.length === 0 ? (
         <EmptyState
-          icon={<Receipt className="h-16 w-16" />}
+          variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No invoices found' : 'No invoices yet'}
           description={
             search

@@ -11,6 +11,7 @@ import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -49,15 +50,7 @@ export default function ClientsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
-  // Stats
-  const stats = useMemo(() => {
-    const now = new Date();
-    const activeClients = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
-    const avgRevenue = total > 0 ? Math.round(totalRevenue / total) : 0;
-    return { total, totalRevenue, activeClients, avgRevenue };
-  }, [clients, total, totalRevenue]);
-
-  // Project count per client
+  // Project count per client — must be before stats
   const clientProjectCount = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const p of projects) {
@@ -65,6 +58,13 @@ export default function ClientsPage() {
     }
     return counts;
   }, [projects]);
+
+  // Stats
+  const stats = useMemo(() => {
+    const activeClients = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
+    const avgRevenue = total > 0 ? Math.round(totalRevenue / total) : 0;
+    return { total, totalRevenue, activeClients, avgRevenue };
+  }, [clients, total, totalRevenue, clientProjectCount]);
 
   // Sort handler — cycles: asc → desc → clear
   const handleSort = (field: string) => {
@@ -163,20 +163,7 @@ export default function ClientsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-end">
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <SummaryCardGrid>
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </SummaryCardGrid>
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 rounded-xl" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
@@ -247,7 +234,7 @@ export default function ClientsPage() {
       {/* Table */}
       {paginated.length === 0 ? (
         <EmptyState
-          icon={<Users className="h-16 w-16" />}
+          variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No clients found' : 'No clients yet'}
           description={
             search
