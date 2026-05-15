@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ProjectForm } from '@/components/projects/ProjectForm';
+import { ProjectInlineRow } from '@/components/projects/ProjectInlineRow';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
@@ -59,8 +60,8 @@ export default function ProjectsPage() {
   const { projects, loading, addProject, editProject, removeProject } = useProjects();
   const { getClientById } = useClients();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [addingRow, setAddingRow] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('recent');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -142,15 +143,16 @@ export default function ProjectsPage() {
   const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleOpenNew = () => {
-    setEditingProject(null);
-    setFormOpen(true);
+  const handleOpenNew = () => setAddingRow(true);
+
+  const handleCancelAdd = () => setAddingRow(false);
+
+  const handleEditInline = (projectId: string) => {
+    setAddingRow(false);
+    setEditingProjectId(projectId);
   };
 
-  const handleEdit = (project: Project) => {
-    setEditingProject(project);
-    setFormOpen(true);
-  };
+  const handleCancelEdit = () => setEditingProjectId(null);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this project? This action cannot be undone.')) return;
@@ -162,17 +164,25 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleSubmit = async (data: ProjectFormData) => {
+  const handleSubmitInline = async (data: ProjectFormData) => {
     try {
-      if (editingProject) {
-        await editProject(editingProject.id, data);
-        toast.success('Project updated');
-      } else {
-        await addProject(data);
-        toast.success('Project created');
-      }
+      await addProject(data);
+      toast.success('Project created');
+      setAddingRow(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Operation failed');
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
+      throw err;
+    }
+  };
+
+  const handleEditSubmitInline = async (data: ProjectFormData) => {
+    if (!editingProjectId) return;
+    try {
+      await editProject(editingProjectId, data);
+      toast.success('Project updated');
+      setEditingProjectId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save');
       throw err;
     }
   };
@@ -283,6 +293,29 @@ export default function ProjectsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {/* Inline add row */}
+              {addingRow && (
+                <ProjectInlineRow
+                  mode="add"
+                  onSave={handleSubmitInline}
+                  onCancel={handleCancelAdd}
+                />
+              )}
+
+              {/* Inline edit row */}
+              {editingProjectId && (() => {
+                const project = projects.find((p) => p.id === editingProjectId);
+                return project ? (
+                  <ProjectInlineRow
+                    mode="edit"
+                    initialData={project}
+                    onSave={handleEditSubmitInline}
+                    onCancel={handleCancelEdit}
+                  />
+                ) : null;
+              })()}
+
+              {/* Existing rows */}
               {paginated.map((project, idx) => {
                 const client = project.clientId ? getClientById(project.clientId) : null;
                 const deadline = project.deadline?.toDate();
@@ -335,7 +368,7 @@ export default function ProjectsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => handleEdit(project)}
+                          onClick={() => handleEditInline(project.id)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -393,13 +426,6 @@ export default function ProjectsPage() {
           )}
         </div>
       )}
-
-      <ProjectForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onSubmit={handleSubmit}
-        initialData={editingProject}
-      />
     </div>
   );
 }
