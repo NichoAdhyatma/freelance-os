@@ -9,10 +9,8 @@ import {
   Pencil,
   Plus,
   Receipt,
-  Search,
   Send,
   Trash2,
-  X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -20,7 +18,9 @@ import { toast } from 'sonner';
 
 import { InvoiceForm } from '@/components/invoices/InvoiceForm';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { SummaryCardGrid, SummaryCard } from '@/components/dashboard/SummaryCard';
+import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +30,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -229,60 +228,45 @@ export default function FinancePage() {
 
       {/* Summary Stats */}
       <SummaryCardGrid>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Revenue</p>
-            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.totalRevenue)}</p>
-          </div>
-          <Receipt className="text-green-500 h-8 w-8" />
-        </div>
-        <div className="bg-card borderBorder flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Outstanding</p>
-            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.outstanding)}</p>
-          </div>
-          <Receipt className="text-yellow-500 h-8 w-8" />
-        </div>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Sent</p>
-            <p className="text-3xl font-bold tracking-tight">{statusCounts.sent}</p>
-          </div>
-          <Receipt className="text-blue-500 h-8 w-8" />
-        </div>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Overdue</p>
-            <p className="text-3xl font-bold tracking-tight">{stats.overdue}</p>
-          </div>
-          <Receipt className="text-red-500 h-8 w-8" />
-        </div>
+        <SummaryCard
+          label="Total Revenue"
+          value={formatIDR(stats.totalRevenue)}
+          sub="Completed"
+          subColor="green"
+          icon={<Receipt className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Outstanding"
+          value={formatIDR(stats.outstanding)}
+          sub="Awaiting"
+          subColor="yellow"
+          icon={<Receipt className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Sent"
+          value={statusCounts.sent}
+          sub="In progress"
+          subColor="default"
+          icon={<Receipt className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Overdue"
+          value={stats.overdue}
+          sub="Needs action"
+          subColor="red"
+          icon={<Receipt className="h-6 w-6" />}
+        />
       </SummaryCardGrid>
 
       {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-        <Input
-          placeholder="Search by invoice number..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="pr-8 pl-9"
-        />
-        {search && (
-          <button
-            onClick={() => {
-              setSearch('');
-              setPage(1);
-            }}
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <TableSearchBar
+        value={search}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        placeholder="Search invoices..."
+      />
 
       {/* Status Filter Tabs */}
       <Tabs
@@ -303,23 +287,17 @@ export default function FinancePage() {
 
       {/* Table */}
       {paginated.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-16 text-center">
-          <Receipt className="text-muted-foreground/30 mb-4 h-16 w-16" />
-          <h3 className="mb-1 text-lg font-semibold">
-            {search ? 'No invoices found' : 'No invoices yet'}
-          </h3>
-          <p className="text-muted-foreground mb-4 text-sm">
-            {search
-              ? `No results for "${search}"`
-              : 'Create your first invoice to start tracking payments'}
-          </p>
-          {!search && (
-            <Button onClick={handleOpenNew}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Invoice
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={<Receipt className="h-16 w-16" />}
+          title={search ? 'No invoices found' : 'No invoices yet'}
+          description={
+            search
+              ? `Pencarian "${search}" tidak ditemukan.`
+              : 'Create your first invoice to start tracking payments'
+          }
+          actionLabel={search ? 'Reset Filter' : 'Create Invoice'}
+          onAction={search ? () => { setSearch(''); setPage(1); } : handleOpenNew}
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <Table>
@@ -331,33 +309,11 @@ export default function FinancePage() {
                 </TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Client</TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Project</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center"
-                    onClick={() => handleSort('amount')}
-                  >
-                    Amount{' '}
-                    <SortIcon
-                      field="amount"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </span>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                  Amount <SortIcon field="amount" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center"
-                    onClick={() => handleSort('due')}
-                  >
-                    Due Date{' '}
-                    <SortIcon
-                      field="due"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </span>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                  Due Date <SortIcon field="due" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
                 <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
                 <TableHead className="text-muted-foreground w-20 text-xs font-medium">
