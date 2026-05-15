@@ -1,15 +1,16 @@
 'use client';
 
-import { Mail, Pencil, Plus, Search, Trash2, Users, X } from 'lucide-react';
+import { Mail, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ClientForm } from '@/components/clients/ClientForm';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -190,60 +191,44 @@ export default function ClientsPage() {
 
       {/* Summary Stats */}
       <SummaryCardGrid>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Clients</p>
-            <p className="text-3xl font-bold tracking-tight">{stats.total}</p>
-          </div>
-          <Users className="text-muted-foreground h-8 w-8" />
-        </div>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Revenue</p>
-            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.totalRevenue)}</p>
-          </div>
-          <Users className="text-green-500 h-8 w-8" />
-        </div>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Active Clients</p>
-            <p className="text-3xl font-bold tracking-tight">{stats.activeClients}</p>
-          </div>
-          <Users className="text-blue-500 h-8 w-8" />
-        </div>
-        <div className="bg-card border-border flex items-center justify-between rounded-xl border px-5 py-4">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Avg Revenue</p>
-            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.avgRevenue)}</p>
-          </div>
-          <Users className="text-purple-500 h-8 w-8" />
-        </div>
+        <SummaryCard
+          label="Total Clients"
+          value={stats.total}
+          sub="All time"
+          icon={<Users className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Active Clients"
+          value={stats.activeClients}
+          sub="Has projects"
+          subColor="green"
+          icon={<Users className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Total Revenue"
+          value={formatIDR(stats.totalRevenue)}
+          sub="Combined"
+          subColor="default"
+          icon={<Users className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Avg Revenue"
+          value={formatIDR(stats.avgRevenue)}
+          sub="Per client"
+          subColor="default"
+          icon={<Users className="h-6 w-6" />}
+        />
       </SummaryCardGrid>
 
       {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-        <Input
-          placeholder="Search clients..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="pr-8 pl-9"
-        />
-        {search && (
-          <button
-            onClick={() => {
-              setSearch('');
-              setPage(1);
-            }}
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <TableSearchBar
+        value={search}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        placeholder="Search clients..."
+      />
 
       {/* Filter Tabs */}
       <Tabs
@@ -261,30 +246,26 @@ export default function ClientsPage() {
 
       {/* Table */}
       {paginated.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-16 text-center">
-          <Users className="text-muted-foreground/30 mb-4 h-16 w-16" />
-          <h3 className="mb-1 text-lg font-semibold">
-            {search ? 'No clients found' : 'No clients yet'}
-          </h3>
-          <p className="text-muted-foreground mb-4 text-sm">
-            {search
-              ? `No results for "${search}"`
-              : 'Add your first client to start managing relationships'}
-          </p>
-          {!search && (
-            <Button onClick={handleOpenNew}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Client
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={<Users className="h-16 w-16" />}
+          title={search ? 'No clients found' : 'No clients yet'}
+          description={
+            search
+              ? `Pencarian "${search}" tidak ditemukan.`
+              : 'Add your first client to start managing relationships'
+          }
+          actionLabel={search ? 'Reset Filter' : 'Add Client'}
+          onAction={search ? () => { setSearch(''); setPage(1); } : handleOpenNew}
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 text-xs font-medium">#</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
+                <TableHead className="text-muted-foreground w-12 select-none text-xs font-medium">
+                  #
+                </TableHead>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
                   <span
                     className="flex cursor-pointer items-center"
                     onClick={() => handleSort('name')}
@@ -298,12 +279,12 @@ export default function ClientsPage() {
                     />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Company</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Contact</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">Company</TableHead>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">Contact</TableHead>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
                   Projects
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
                   <span
                     className="flex cursor-pointer items-center"
                     onClick={() => handleSort('revenue')}
@@ -317,7 +298,7 @@ export default function ClientsPage() {
                     />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground w-20 text-xs font-medium">
+                <TableHead className="text-muted-foreground w-20 select-none text-xs font-medium">
                   Actions
                 </TableHead>
               </TableRow>
