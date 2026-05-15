@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   CheckCircle,
   MoreHorizontal,
-  Pencil,
   Plus,
   Receipt,
   Send,
@@ -16,7 +15,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { InvoiceForm } from '@/components/invoices/InvoiceForm';
+import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCardGrid, SummaryCard } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
@@ -70,8 +69,7 @@ export default function FinancePage() {
   const { getClientById } = useClients();
   const { projects } = useProjects();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<any>(null);
+  const [addingRow, setAddingRow] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sortField, setSortField] = useState<SortField>('recent');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -147,15 +145,9 @@ export default function FinancePage() {
   const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleOpenNew = () => {
-    setEditingInvoice(null);
-    setFormOpen(true);
-  };
+  const handleOpenNew = () => setAddingRow(true);
 
-  const handleEdit = (inv: any) => {
-    setEditingInvoice(inv);
-    setFormOpen(true);
-  };
+  const handleCancelAdd = () => setAddingRow(false);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this invoice?')) return;
@@ -185,15 +177,11 @@ export default function FinancePage() {
     }
   };
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmitInline = async (data: any) => {
     try {
-      if (editingInvoice) {
-        await edit(editingInvoice.id, data);
-        toast.success('Invoice updated');
-      } else {
-        await add(data);
-        toast.success('Invoice created');
-      }
+      await add(data);
+      toast.success('Invoice created');
+      setAddingRow(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
       throw err;
@@ -310,6 +298,13 @@ export default function FinancePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {addingRow && (
+                <InvoiceInlineRow
+                  mode="add"
+                  onSave={handleSubmitInline}
+                  onCancel={handleCancelAdd}
+                />
+              )}
               {paginated.map((inv, idx) => {
                 const status = inv.status as InvoiceStatus;
                 const config = STATUS_CONFIG[status];
@@ -359,14 +354,6 @@ export default function FinancePage() {
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleEdit(inv)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger className="bg-background hover:bg-accent flex h-7 w-7 items-center justify-center rounded-md border">
                             <MoreHorizontal className="h-3.5 w-3.5" />
@@ -445,12 +432,6 @@ export default function FinancePage() {
         </div>
       )}
 
-      <InvoiceForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onSubmit={handleSubmit}
-        initialData={editingInvoice}
-      />
-    </div>
+          </div>
   );
 }
