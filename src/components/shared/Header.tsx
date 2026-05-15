@@ -91,7 +91,7 @@ export function Header() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
