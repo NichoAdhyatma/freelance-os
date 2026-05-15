@@ -1,18 +1,13 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertTriangle, FolderKanban, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { AlertTriangle, FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { ProjectForm } from '@/components/projects/ProjectForm';
-import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCardGrid } from '@/components/dashboard/SummaryCard';
-import { StatItem } from '@/components/dashboard/SummaryCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -23,6 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ProjectForm } from '@/components/projects/ProjectForm';
+import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
+import { SortIcon } from '@/components/dashboard/SortIcon';
+import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -79,8 +79,7 @@ export default function ProjectsPage() {
       if (!p.deadline || p.status === 'done') return false;
       return p.deadline.toDate() < now;
     }).length;
-    const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
-    return { total, active, done, overdue, totalBudget };
+    return { total, active, done, overdue };
   }, [projects]);
 
   // Sort handler — cycles: asc → desc → clear
@@ -206,136 +205,91 @@ export default function ProjectsPage() {
 
       {/* Summary Stats */}
       <SummaryCardGrid>
-        <div className="bg-card border-border col-span-2 flex items-center justify-between rounded-xl border px-5 py-4 lg:col-span-1">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Projects</p>
-            <p className="text-3xl font-bold tracking-tight">{stats.total}</p>
-          </div>
-          <FolderKanban className="text-muted-foreground h-8 w-8" />
-        </div>
-        <div className="bg-card border-border col-span-2 flex items-center justify-between rounded-xl border px-5 py-4 lg:col-span-1">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Active</p>
-            <p className="text-3xl font-bold tracking-tight">{stats.active}</p>
-          </div>
-          <FolderKanban className="text-yellow-500 h-8 w-8" />
-        </div>
-        <div className="bg-card border-border col-span-2 flex items-center justify-between rounded-xl border px-5 py-4 lg:col-span-1">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Completed</p>
-            <p className="text-3xl font-bold tracking-tight">{stats.done}</p>
-          </div>
-          <FolderKanban className="text-green-500 h-8 w-8" />
-        </div>
-        <div className="bg-card border-border col-span-2 flex items-center justify-between rounded-xl border px-5 py-4 lg:col-span-1">
-          <div>
-            <p className="text-muted-foreground mb-1 text-xs font-medium">Total Budget</p>
-            <p className="text-3xl font-bold tracking-tight">{formatIDR(stats.totalBudget)}</p>
-          </div>
-          <FolderKanban className="text-muted-foreground h-8 w-8" />
-        </div>
+        <SummaryCard
+          label="Total Projects"
+          value={stats.total}
+          sub="All time"
+          icon={<FolderKanban className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Active"
+          value={stats.active}
+          sub="In progress"
+          subColor="yellow"
+          icon={<FolderKanban className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Completed"
+          value={stats.done}
+          sub="Done"
+          subColor="green"
+          icon={<FolderKanban className="h-6 w-6" />}
+        />
+        <SummaryCard
+          label="Overdue"
+          value={stats.overdue}
+          sub="Need attention"
+          subColor="red"
+          icon={<FolderKanban className="h-6 w-6" />}
+        />
       </SummaryCardGrid>
 
       {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-        <Input
-          placeholder="Search by project or client name..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="pr-8 pl-9"
-        />
-        {search && (
-          <button
-            onClick={() => {
-              setSearch('');
-              setPage(1);
-            }}
-            className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+      <TableSearchBar
+        value={search}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        placeholder="Search projects or clients..."
+      />
 
-      {/* Table */}
+      {/* Table or Empty State */}
       {paginated.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-16 text-center">
-          <FolderKanban className="text-muted-foreground/30 mb-4 h-16 w-16" />
-          <h3 className="mb-1 text-lg font-semibold">
-            {search ? 'No projects found' : 'No projects yet'}
-          </h3>
-          <p className="text-muted-foreground mb-4 text-sm">
-            {search
-              ? `No results for "${search}"`
-              : 'Create your first project to start tracking work'}
-          </p>
-          {!search && (
-            <Button onClick={handleOpenNew}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Project
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={<FolderKanban className="h-16 w-16" />}
+          title={search ? 'No projects found' : 'No projects yet'}
+          description={
+            search
+              ? `Pencarian "${search}" tidak ditemukan.`
+              : 'Create your first project to start tracking work'
+          }
+          actionLabel={search ? 'Reset Filter' : 'Create Project'}
+          onAction={search ? () => { setSearch(''); setPage(1); } : handleOpenNew}
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 text-xs font-medium">#</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center gap-1"
-                    onClick={() => handleSort('title')}
-                  >
-                    Title{' '}
-                    <SortIcon
-                      field="title"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
+                <TableHead className="text-muted-foreground w-12 select-none text-xs font-medium">
+                  #
+                </TableHead>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('title')}>
+                    Title <SortIcon field="title" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Client</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                  Client
+                </TableHead>
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
                   Priority
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center gap-1"
-                    onClick={() => handleSort('budget')}
-                  >
-                    Budget{' '}
-                    <SortIcon
-                      field="budget"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('budget')}>
+                    Budget <SortIcon field="budget" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
                   Progress
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center gap-1"
-                    onClick={() => handleSort('deadline')}
-                  >
-                    Deadline{' '}
-                    <SortIcon
-                      field="deadline"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
+                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('deadline')}>
+                    Deadline <SortIcon field="deadline" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground w-20 text-xs font-medium">
+                <TableHead className="text-muted-foreground w-20 select-none text-xs font-medium">
                   Actions
                 </TableHead>
               </TableRow>
@@ -352,9 +306,7 @@ export default function ProjectsPage() {
                     className="border-border hover:bg-accent/50 cursor-pointer"
                     onClick={() => router.push(`/dashboard/projects/${project.id}`)}
                   >
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {start + idx}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground py-3 text-sm">{start + idx}</TableCell>
                     <TableCell className="max-w-[200px] py-3">
                       <span className="block truncate font-medium">{project.title}</span>
                     </TableCell>
@@ -364,9 +316,7 @@ export default function ProjectsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="py-3">
-                      <Badge
-                        className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}
-                      >
+                      <Badge className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}>
                         {PRIORITY_LABELS[project.priority]}
                       </Badge>
                     </TableCell>
@@ -376,9 +326,7 @@ export default function ProjectsPage() {
                     <TableCell className="py-3">
                       <div className="flex items-center gap-2">
                         <Progress value={project.progress} className="h-2 w-20" />
-                        <span className="text-muted-foreground w-8 text-xs">
-                          {project.progress}%
-                        </span>
+                        <span className="text-muted-foreground w-8 text-xs">{project.progress}%</span>
                       </div>
                     </TableCell>
                     <TableCell className="py-3">
@@ -423,9 +371,7 @@ export default function ProjectsPage() {
           {totalPages > 1 && (
             <div className="border-border flex items-center justify-between border-t px-6 py-4">
               <p className="text-muted-foreground text-sm">
-                {filtered.length === 0
-                  ? 'No results'
-                  : `Showing ${start}–${end} of ${filtered.length}`}
+                {filtered.length === 0 ? 'No results' : `Showing ${start}–${end} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">
                 <Button
@@ -452,7 +398,7 @@ export default function ProjectsPage() {
                   disabled={currentPage >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  Next ��
+                  Next →
                 </Button>
               </div>
             </div>
