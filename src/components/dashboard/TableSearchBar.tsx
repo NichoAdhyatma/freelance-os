@@ -1,7 +1,7 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -20,15 +20,22 @@ export function TableSearchBar({
   className,
 }: TableSearchBarProps) {
   const [localValue, setLocalValue] = useState(value);
+  const lastEmittedRef = useRef<string>(value);
 
+  // Sync when parent resets value externally (e.g. reset from empty state)
   useEffect(() => {
     setLocalValue(value);
+    lastEmittedRef.current = value;
   }, [value]);
 
   const debouncedValue = useDebounce(localValue, 300);
 
+  // Emit to parent only when user actually typed something new
   useEffect(() => {
-    onChange(debouncedValue);
+    if (debouncedValue !== lastEmittedRef.current) {
+      lastEmittedRef.current = debouncedValue;
+      onChange(debouncedValue);
+    }
   }, [debouncedValue, onChange]);
 
   return (
@@ -45,6 +52,8 @@ export function TableSearchBar({
           <button
             onClick={() => {
               setLocalValue('');
+              lastEmittedRef.current = '';
+              // Emit immediately on clear — bypass debounce so parent updates right away
               onChange('');
             }}
             className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
