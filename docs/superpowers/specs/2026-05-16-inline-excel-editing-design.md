@@ -27,13 +27,22 @@
 | Title | Text (truncated) | `<Input>` — auto-focused on row click |
 | Client | Client name | `<Select>` dropdown |
 | Priority | Badge | `<Select>` dropdown |
+| Budget | IDR format | `<Input type="number">` — numeric input with IDR formatting |
+| Progress | Progress bar + % | `<Input type="number" min="0" max="100">` + immediate `<Progress>` bar update |
 | Deadline | Date string | `<Popover>` + `<Calendar>` |
-| Budget | IDR format | Read-only (no edit) |
-| Progress | Progress bar | Read-only (no edit) |
 | Actions | ✏️ pencil icon | ✅ Save + ❌ Cancel buttons |
 
-### Non-Editable Cells
-Budget, Progress → tetap display-only, tidak berubah saat row di-edit.
+### Budget Edit — UX Detail
+- Input shows raw number (e.g. `1500000`)
+- On blur/focusout: format to IDR (e.g. `Rp 1.500.000`) for display
+- Accepts numeric input only — non-numeric characters stripped automatically
+- Empty or `0` → shows `—` in display mode
+
+### Progress Edit — UX Detail
+- `<input type="number" min="0" max="100">` — user types or clears
+- `<Progress>` bar updates immediately as user types (live preview)
+- `%` suffix shown inside input on blur
+- If invalid (< 0 or > 100), clamp to valid range.
 
 ### Save Flow
 1. User klik row → row enters edit mode. Title input auto-focused.
@@ -106,8 +115,10 @@ The edit row replaces the display row at the same position — no moving around.
 
 1. Klik "New Project" → inline add row (already works)
 2. Klik 1x pada row project → row langsung editable (Title focused)
-3. Semua cell (Client, Priority, Deadline) berubah jadi input/select
-4. Klik di luar row → auto-save, row kembali ke display
-5. Tekan Escape → cancel, row kembali ke display
-6. Tekan Enter di Title → save, row kembali ke display
-7. Klik row lain saat satu row lagi di-edit → row sebelumnya auto-save, row baru masuk edit mode
+3. Semua cell (Title, Client, Priority, Budget, Progress, Deadline) berubah jadi input/select
+4. Edit Budget → number input, blur → format ke IDR display
+5. Edit Progress → number input, progress bar live preview
+6. Klik di luar row → auto-save, row kembali ke display
+7. Tekan Escape → cancel, row kembali ke display
+8. Tekan Enter di Title → save, row kembali ke display
+9. Klik row lain saat satu row lagi di-edit → row sebelumnya auto-save, row baru masuk edit mode
