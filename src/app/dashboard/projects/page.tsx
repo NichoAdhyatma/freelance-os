@@ -1,34 +1,25 @@
 'use client';
 
-import { format } from 'date-fns';
-import { ArrowRight, FolderKanban, Plus } from 'lucide-react';
+import { FolderKanban, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { openContextMenu } from '@/components/shared/RowContextMenu';
+import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader } from '@/components/ui/table';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
-import { ProjectRow } from '@/components/projects/ProjectRow';
-import { ProjectAddRow } from '@/components/projects/ProjectRow';
+import { ProjectRow, ProjectAddRow } from '@/components/projects/ProjectRow';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useProjects } from '@/hooks/useProjects';
 import { setDashboardTitle } from '@/app/dashboard/_context';
-import { type Project, type ProjectFormData } from '@/types/project';
+import { type ProjectFormData } from '@/types/project';
 
 type SortField = 'recent' | 'title' | 'priority' | 'budget' | 'deadline' | null;
 type SortDir = 'asc' | 'desc' | null;
@@ -226,7 +217,7 @@ export default function ProjectsPage() {
                   onSave={handleSubmitInline}
                   onCancel={handleCancelAdd}
                   pendingClientId={pendingClientId}
-                  onAddingClientChange={(adding) => setAddingClientInline(adding)}
+                  onAddClient={() => setAddingClientInline(true)}
                 />
               </tbody>
             </table>
@@ -301,8 +292,7 @@ export default function ProjectsPage() {
                   onSave={(data) => handleCellSave(project.id, data)}
                   onDelete={() => handleDelete(project.id)}
                   onNavigate={() => router.push(`/dashboard/projects/${project.id}`)}
-                  pendingClientId={pendingClientId}
-                  onAddingClientChange={(adding) => setAddingClientInline(adding)}
+                  onAddClient={() => setAddingClientInline(true)}
                 />
               ))}
             </TableBody>

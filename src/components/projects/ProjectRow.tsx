@@ -1,8 +1,8 @@
 'use client';
 
-import { ArrowRight, CalendarIcon, Check, X, AlertTriangle } from 'lucide-react';
+import { ArrowRight, CalendarIcon, Check, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
-type CellKey = 'title' | 'client' | 'priority' | 'budget' | 'progress' | 'deadline';
+// ── Display row with per-cell click-to-edit ──────────────────────────────────
 
 interface ProjectRowProps {
   project: Project;
@@ -42,35 +42,34 @@ interface ProjectRowProps {
   onSave: (data: Partial<ProjectFormData>) => Promise<void>;
   onDelete: () => void;
   onNavigate: () => void;
-  pendingClientId?: string | null;
-  onAddingClientChange?: (adding: boolean) => void;
+  onAddClient: () => void;
 }
 
-export function ProjectRow({ project, index, onSave, onDelete, onNavigate, pendingClientId, onAddingClientChange }: ProjectRowProps) {
+type CellKey = 'title' | 'client' | 'priority' | 'budget' | 'progress' | 'deadline';
+
+export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAddClient }: ProjectRowProps) {
   const { clients } = useClients();
   const [editingCell, setEditingCell] = useState<CellKey | null>(null);
 
-  // Local state for the cell being edited
+  // Per-cell edit state
   const [editTitle, setEditTitle] = useState(project.title);
   const [editClient, setEditClient] = useState(project.clientId ?? '');
   const [editPriority, setEditPriority] = useState<ProjectPriority>(project.priority);
-  const [editBudget, setEditBudget] = useState<string>(project.budget ? String(project.budget) : '');
+  const [editBudget, setEditBudget] = useState(project.budget ? String(project.budget) : '');
   const [editProgress, setEditProgress] = useState(project.progress ?? 0);
   const [editDeadline, setEditDeadline] = useState<Date | undefined>(project.deadline?.toDate());
 
-  // Original values for revert on Escape
-  const origRef = useRef({ title: project.title, clientId: project.clientId ?? '', priority: project.priority, budget: project.budget ?? 0, progress: project.progress ?? 0, deadline: project.deadline?.toDate() });
+  // Original values for Escape revert
+  const origRef = useRef({
+    title: project.title,
+    clientId: project.clientId ?? '',
+    priority: project.priority,
+    budget: project.budget ?? 0,
+    progress: project.progress ?? 0,
+    deadline: project.deadline?.toDate(),
+  });
 
-  // Sync when pendingClientId comes from client creation
-  useEffect(() => {
-    if (pendingClientId && pendingClientId !== editClient) {
-      setEditClient(pendingClientId);
-      onSave({ clientId: pendingClientId }).then(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingClientId]);
-
-  // Save a specific cell
+  // Save one cell
   const saveCell = async (key: CellKey) => {
     setEditingCell(null);
     try {
@@ -82,13 +81,12 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, pendi
       if (key === 'progress') data.progress = editProgress;
       if (key === 'deadline') data.deadline = editDeadline;
       await onSave(data);
-      toast.success('Saved');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
     }
   };
 
-  // Revert a cell to original value
+  // Revert one cell to original
   const revertCell = (key: CellKey) => {
     setEditingCell(null);
     if (key === 'title') setEditTitle(origRef.current.title);
@@ -99,189 +97,185 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, pendi
     if (key === 'deadline') setEditDeadline(origRef.current.deadline);
   };
 
-  // ── Cell render helpers ────────────────────────────────────────────
-
-  const TitleCell = () => {
-    if (editingCell === 'title') {
-      return (
-        <Input
-          autoFocus
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          className="h-8 text-sm"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); saveCell('title'); }
-            if (e.key === 'Escape') { e.preventDefault(); revertCell('title'); }
-          }}
-          onBlur={() => saveCell('title')}
-        />
-      );
-    }
-    return (
-      <span className="block cursor-pointer truncate font-medium hover:text-primary" onClick={() => setEditingCell('title')}>
+  // ── Title ──────────────────────────────────────────────────────────────
+  const TitleCell = () =>
+    editingCell === 'title' ? (
+      <Input
+        autoFocus
+        value={editTitle}
+        onChange={(e) => setEditTitle(e.target.value)}
+        className="h-8 text-sm"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); saveCell('title'); }
+          if (e.key === 'Escape') { e.preventDefault(); revertCell('title'); }
+        }}
+        onBlur={() => saveCell('title')}
+      />
+    ) : (
+      <span
+        className="block cursor-pointer truncate font-medium hover:text-primary"
+        onClick={() => { setEditTitle(project.title); setEditingCell('title'); }}
+      >
         {project.title}
       </span>
     );
-  };
 
-  const ClientCell = () => {
-    const client = clients.find((c) => c.id === editClient);
-    if (editingCell === 'client') {
-      return (
-        <div className="flex items-center gap-1">
-          <Select value={editClient} onValueChange={(v) => { setEditClient(v ?? ''); }}>
-            <SelectTrigger className="h-8 w-full min-w-[120px] text-sm">
-              <SelectValue placeholder="Select client" />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {onAddingClientChange && (
-            <Button type="button" variant="outline" size="sm" className="h-8 w-8 shrink-0 p-0" onClick={() => onAddingClientChange?.(true)}>
-              <span className="text-xs">+</span>
-            </Button>
-          )}
-        </div>
-      );
-    }
-    return (
-      <span className="block cursor-pointer truncate text-sm text-muted-foreground hover:text-foreground" onClick={() => setEditingCell('client')}>
-        {client?.name ?? '—'}
+  // ── Client ────────────────────────────────────────────────────────────
+  const selectedClientName = clients.find((c) => c.id === editClient)?.name;
+  const ClientCell = () =>
+    editingCell === 'client' ? (
+      <Select
+        value={editClient}
+        onValueChange={(v) => {
+          if (v === '__add_client__') { setEditingCell(null); onAddClient(); return; }
+          setEditClient(v ?? '');
+        }}
+        onOpenChange={(open) => { if (!open && editClient !== origRef.current.clientId) saveCell('client'); }}
+      >
+        <SelectTrigger className="h-8 w-full min-w-[120px] text-sm">
+          <SelectValue placeholder="Select client" />
+        </SelectTrigger>
+        <SelectContent>
+          {clients.map((c) => (
+            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+          ))}
+          {clients.length > 0 && <div className="my-1 border-t border-border" />}
+          <button
+            type="button"
+            className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            onPointerDown={(e) => { e.preventDefault(); setEditingCell(null); onAddClient(); }}
+          >
+            <Plus className="h-3 w-3" /> Add client
+          </button>
+        </SelectContent>
+      </Select>
+    ) : (
+      <span
+        className="block cursor-pointer truncate text-sm text-muted-foreground hover:text-foreground"
+        onClick={() => { setEditClient(project.clientId ?? ''); setEditingCell('client'); }}
+      >
+        {selectedClientName ?? '—'}
       </span>
     );
-  };
 
-  const PriorityCell = () => {
-    if (editingCell === 'priority') {
-      return (
-        <Select value={editPriority} onValueChange={(v) => { setEditPriority(v as ProjectPriority); }}>
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PRIORITY_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      );
-    }
-    return (
-      <Badge className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium} onClick={() => setEditingCell('priority')}>
+  // ── Priority ──────────────────────────────────────────────────────────
+  const PriorityCell = () =>
+    editingCell === 'priority' ? (
+      <Select
+        value={editPriority}
+        onValueChange={(v) => { setEditPriority(v as ProjectPriority); saveCell('priority'); }}
+        onOpenChange={(open) => { if (!open && editPriority !== origRef.current.priority) saveCell('priority'); }}
+      >
+        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {PRIORITY_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    ) : (
+      <Badge
+        className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}
+        onClick={() => { setEditPriority(project.priority); setEditingCell('priority'); }}
+      >
         {PRIORITY_LABELS[project.priority]}
       </Badge>
     );
-  };
 
-  const BudgetCell = () => {
-    if (editingCell === 'budget') {
-      return (
-        <Input
-          value={editBudget}
-          onChange={(e) => setEditBudget(e.target.value.replace(/\D/g, ''))}
-          inputMode="numeric"
-          className="h-8 w-28 text-sm"
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); saveCell('budget'); }
-            if (e.key === 'Escape') { e.preventDefault(); revertCell('budget'); }
-          }}
-          onBlur={() => saveCell('budget')}
-        />
-      );
-    }
-    return (
-      <span className="cursor-pointer text-sm text-muted-foreground hover:text-foreground" onClick={() => setEditingCell('budget')}>
+  // ── Budget ────────────────────────────────────────────────────────────
+  const BudgetCell = () =>
+    editingCell === 'budget' ? (
+      <Input
+        autoFocus
+        value={editBudget}
+        onChange={(e) => setEditBudget(e.target.value.replace(/\D/g, ''))}
+        inputMode="numeric"
+        className="h-8 w-28 text-sm"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); saveCell('budget'); }
+          if (e.key === 'Escape') { e.preventDefault(); revertCell('budget'); }
+        }}
+        onBlur={() => saveCell('budget')}
+      />
+    ) : (
+      <span
+        className="cursor-pointer text-sm text-muted-foreground hover:text-foreground"
+        onClick={() => { setEditBudget(project.budget ? String(project.budget) : ''); setEditingCell('budget'); }}
+      >
         {project.budget ? formatIDR(project.budget) : '—'}
       </span>
     );
-  };
 
-  const ProgressCell = () => {
-    if (editingCell === 'progress') {
-      return (
-        <div className="flex items-center gap-2">
-          <Input
-            value={String(editProgress)}
-            onChange={(e) => {
-              const num = parseInt(e.target.value, 10);
-              setEditProgress(isNaN(num) ? 0 : Math.min(100, Math.max(0, num)));
-            }}
-            inputMode="numeric"
-            className="h-8 w-14 text-sm text-center"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); saveCell('progress'); }
-              if (e.key === 'Escape') { e.preventDefault(); revertCell('progress'); }
-            }}
-            onBlur={() => saveCell('progress')}
-          />
-          <Progress value={editProgress} className="h-2 w-16" />
-        </div>
-      );
-    }
-    return (
+  // ── Progress ───────────────────────────────────────────────────────────
+  const ProgressCell = () =>
+    editingCell === 'progress' ? (
+      <div className="flex items-center gap-2">
+        <Input
+          autoFocus
+          value={String(editProgress)}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10);
+            setEditProgress(isNaN(n) ? 0 : Math.min(100, Math.max(0, n)));
+          }}
+          inputMode="numeric"
+          className="h-8 w-14 text-center text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); saveCell('progress'); }
+            if (e.key === 'Escape') { e.preventDefault(); revertCell('progress'); }
+          }}
+          onBlur={() => saveCell('progress')}
+        />
+        <Progress value={editProgress} className="h-2 w-16" />
+      </div>
+    ) : (
       <div className="flex items-center gap-2">
         <Progress value={project.progress ?? 0} className="h-2 w-20" />
-        <span className="cursor-pointer text-xs text-muted-foreground hover:text-foreground" onClick={() => setEditingCell('progress')}>
+        <span
+          className="cursor-pointer text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => { setEditProgress(project.progress ?? 0); setEditingCell('progress'); }}
+        >
           {project.progress ?? 0}%
         </span>
       </div>
     );
-  };
 
-  const DeadlineCell = () => {
-    const d = project.deadline?.toDate();
-    const isOverdue = d && d < new Date() && project.status !== 'done';
-    if (editingCell === 'deadline') {
-      return (
-        <Popover>
-          <PopoverTrigger className="flex h-8 items-center gap-1 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-muted">
-            <CalendarIcon className="h-3 w-3" />
-            {editDeadline ? format(editDeadline, 'dd MMM') : 'Pick date'}
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={editDeadline}
-              onSelect={(date) => {
-                setEditDeadline(date);
-                setEditingCell(null);
-                onSave({ deadline: date }).then(() => {}).catch(() => {});
-              }}
-              disabled={(d) => d < new Date('2020-01-01')}
-            />
-          </PopoverContent>
-        </Popover>
-      );
-    }
-    return (
-      <span className="flex cursor-pointer items-center gap-1 text-sm hover:text-foreground" onClick={() => setEditingCell('deadline')}>
-        {isOverdue && <AlertTriangle className="h-3 w-3 shrink-0 text-red-500" />}
+  // ── Deadline ────────────────────────────────────────────────────────
+  const deadline = project.deadline?.toDate();
+  const isOverdue = deadline && deadline < new Date() && project.status !== 'done';
+  const DeadlineCell = () =>
+    editingCell === 'deadline' ? (
+      <Popover>
+        <PopoverTrigger className="flex h-8 items-center gap-1 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-muted">
+          <CalendarIcon className="h-3 w-3" />
+          {editDeadline ? format(editDeadline, 'dd MMM') : 'Pick date'}
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={editDeadline}
+            onSelect={(d) => { setEditDeadline(d); saveCell('deadline'); }}
+            disabled={(d) => d < new Date('2020-01-01')}
+          />
+        </PopoverContent>
+      </Popover>
+    ) : (
+      <span
+        className="flex cursor-pointer items-center gap-1 text-sm hover:text-foreground"
+        onClick={() => { setEditDeadline(project.deadline?.toDate()); setEditingCell('deadline'); }}
+      >
+        {isOverdue && <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />}
         <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
-          {d ? format(d, 'dd MMM yyyy') : '—'}
+          {deadline ? format(deadline, 'dd MMM yyyy') : '—'}
         </span>
       </span>
     );
-  };
 
   return (
     <TableRow
-      className="border-b border-border hover:bg-accent/50 cursor-default"
-      onContextMenu={(e) => {
-        e.preventDefault();
-        // Import openContextMenu from page.tsx via a callback approach
-        // The page passes onDelete, so we call it via a custom event approach
-        // Actually, let's just call onDelete directly — the page's context menu handles this
-        // But since this is a row, we'll call the page's context menu via window dispatch
-        // Better: just call onDelete directly since the page wants to confirm
-        // We'll delegate back to page via a data attribute approach
-      }}
+      className="border-b border-border hover:bg-accent/50"
+      onContextMenu={(e) => { e.preventDefault(); onDelete(); }}
     >
-      <TableCell className="py-3 pl-4 pr-2 text-muted-foreground text-sm w-8">{index + 1}</TableCell>
+      <TableCell className="w-8 py-3 pl-4 pr-2 text-muted-foreground text-sm">{index}</TableCell>
       <TableCell className="max-w-[200px] py-3 pr-2"><TitleCell /></TableCell>
       <TableCell className="max-w-[140px] py-3 pr-2"><ClientCell /></TableCell>
       <TableCell className="py-3 pr-2"><PriorityCell /></TableCell>
@@ -302,16 +296,16 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, pendi
   );
 }
 
-// ── Add row component ──────────────────────────────────────────────────────────
+// ── Add row (full editable) ────────────────────────────────────────────────
 
 interface ProjectAddRowProps {
   onSave: (data: ProjectFormData) => Promise<void>;
   onCancel: () => void;
   pendingClientId?: string | null;
-  onAddingClientChange?: (adding: boolean) => void;
+  onAddClient: () => void;
 }
 
-export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddingClientChange }: ProjectAddRowProps) {
+export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }: ProjectAddRowProps) {
   const { clients } = useClients();
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
@@ -322,10 +316,8 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddingClien
   const [saving, setSaving] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { titleRef.current?.focus(); }, []);
-  useEffect(() => {
-    if (pendingClientId && pendingClientId !== clientId) setClientId(pendingClientId);
-  }, [pendingClientId, clientId]);
+  // Auto-focus title
+  useRef(() => { titleRef.current?.focus(); });
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error('Title is required'); return; }
@@ -340,16 +332,41 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddingClien
 
   return (
     <TableRow className="bg-muted/20 border-b border-border">
-      <TableCell className="py-2 pl-4 pr-2 text-muted-foreground text-sm w-8">+</TableCell>
+      <TableCell className="w-8 py-2 pl-4 pr-2 text-muted-foreground text-sm">+</TableCell>
       <TableCell className="py-2 pr-2">
-        <Input ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Project name..." className="h-8 text-sm"
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }} />
+        <Input
+          ref={titleRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Project name..."
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') onCancel();
+          }}
+        />
       </TableCell>
       <TableCell className="py-2 pr-2">
-        <Select value={clientId} onValueChange={(v) => setClientId(v ?? '')}>
+        <Select
+          value={clientId}
+          onValueChange={(v) => {
+            if (v === '__add_client__') { onAddClient(); return; }
+            setClientId(v ?? '');
+          }}
+        >
           <SelectTrigger className="h-8 w-full min-w-[120px] text-sm"><SelectValue placeholder="Select client" /></SelectTrigger>
           <SelectContent>
-            {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+            {clients.length > 0 && <div className="my-1 border-t border-border" />}
+            <button
+              type="button"
+              className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              onPointerDown={(e) => { e.preventDefault(); onAddClient(); }}
+            >
+              <Plus className="h-3 w-3" /> Add client
+            </button>
           </SelectContent>
         </Select>
       </TableCell>
@@ -357,18 +374,49 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddingClien
         <Select value={priority} onValueChange={(v) => setPriority(v as ProjectPriority)}>
           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {PRIORITY_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            {PRIORITY_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </TableCell>
       <TableCell className="py-2 pr-2">
-        <Input value={budget} onChange={(e) => setBudget(e.target.value.replace(/\D/g, ''))} inputMode="numeric" className="h-8 w-28 text-sm" placeholder="0" />
+        <Input
+          value={budget}
+          onChange={(e) => setBudget(e.target.value.replace(/\D/g, ''))}
+          inputMode="numeric"
+          className="h-8 w-28 text-sm"
+          placeholder="0"
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
+        />
       </TableCell>
       <TableCell className="py-2 pr-2">
-        <Input value={String(progress)} onChange={(e) => { const n = parseInt(e.target.value, 10); setProgress(isNaN(n) ? 0 : Math.min(100, Math.max(0, n))); }} inputMode="numeric" className="h-8 w-14 text-sm text-center" />
+        <Input
+          value={String(progress)}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10);
+            setProgress(isNaN(n) ? 0 : Math.min(100, Math.max(0, n));
+          }}
+          inputMode="numeric"
+          className="h-8 w-14 text-center text-sm"
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
+        />
       </TableCell>
       <TableCell className="py-2 pr-2">
-        <Input type="date" value={deadline ? format(deadline, 'yyyy-MM-dd') : ''} onChange={(e) => setDeadline(e.target.value ? new Date(e.target.value) : undefined)} className="h-8 text-xs" />
+        <Popover>
+          <PopoverTrigger className="flex h-8 w-full items-center gap-1 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-muted">
+            <CalendarIcon className="h-3 w-3 shrink-0" />
+            {deadline ? format(deadline, 'dd MMM yyyy') : 'Pick date'}
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={deadline}
+              onSelect={(d) => setDeadline(d)}
+              disabled={(d) => d < new Date('2020-01-01')}
+            />
+          </PopoverContent>
+        </Popover>
       </TableCell>
       <TableCell className="py-2 pr-4">
         <div className="flex items-center gap-1">
