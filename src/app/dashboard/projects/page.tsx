@@ -1,54 +1,34 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertTriangle, ArrowRight, FolderKanban, Plus } from 'lucide-react';
+import { ArrowRight, FolderKanban, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { openContextMenu } from '@/components/shared/RowContextMenu';
-
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ProjectForm } from '@/components/projects/ProjectForm';
-import { ProjectInlineRow } from '@/components/projects/ProjectInlineRow';
 import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { ProjectRow } from '@/components/projects/ProjectRow';
+import { ProjectAddRow } from '@/components/projects/ProjectRow';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useProjects } from '@/hooks/useProjects';
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { type Project, type ProjectFormData } from '@/types/project';
-import { formatIDR } from '@/lib/utils';
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  medium: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  high: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
-};
 
 type SortField = 'recent' | 'title' | 'priority' | 'budget' | 'deadline' | null;
 type SortDir = 'asc' | 'desc' | null;
@@ -64,7 +44,6 @@ export default function ProjectsPage() {
   const { getClientById } = useClients();
 
   const [addingRow, setAddingRow] = useState(false);
-  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [addingClientInline, setAddingClientInline] = useState(false);
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -145,7 +124,6 @@ export default function ProjectsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const start = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleOpenNew = () => {
@@ -177,6 +155,10 @@ export default function ProjectsPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
       throw err;
     }
+  };
+
+  const handleCellSave = async (id: string, data: Partial<ProjectFormData>) => {
+    await editProject(id, data);
   };
 
   if (authLoading || loading) {
@@ -240,8 +222,7 @@ export default function ProjectsPage() {
           <div className="overflow-hidden rounded-lg border">
             <table className="w-full">
               <tbody>
-                <ProjectInlineRow
-                  mode="add"
+                <ProjectAddRow
                   onSave={handleSubmitInline}
                   onCancel={handleCancelAdd}
                   pendingClientId={pendingClientId}
@@ -312,102 +293,18 @@ export default function ProjectsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* Edit row — replaces display row at same position */}
-              {editingProjectId && (() => {
-                const project = projects.find((p) => p.id === editingProjectId);
-                if (!project) return null;
-                return (
-                  <ProjectInlineRow
-                    key={project.id}
-                    mode="edit"
-                    initialData={project}
-                    onSave={async (data) => {
-                      await editProject(editingProjectId, data);
-                      toast.success('Project updated');
-                      setEditingProjectId(null);
-                    }}
-                    onCancel={() => setEditingProjectId(null)}
-                    pendingClientId={pendingClientId}
-                    onAddingClientChange={(adding) => setAddingClientInline(adding)}
-                    onNavigate={() => router.push(`/dashboard/projects/${editingProjectId}`)}
-                  />
-                );
-              })()}
-
-              {/* Existing rows */}
-              {paginated
-                .filter((p) => p.id !== editingProjectId)
-                .map((project, idx) => {
-                  const client = project.clientId ? getClientById(project.clientId) : null;
-                  const deadline = project.deadline?.toDate();
-                  const isOverdue = deadline && deadline < new Date() && project.status !== 'done';
-
-                  return (
-                    <TableRow
-                      data-edit-row
-                      key={project.id}
-                      className="border-border hover:bg-accent/50 cursor-pointer"
-                      onClick={() => setEditingProjectId(project.id)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        openContextMenu(e.clientX, e.clientY, [
-                          { label: 'Delete Project', destructive: true, onClick: () => handleDelete(project.id) }
-                        ]);
-                      }}
-                    >
-                    <TableCell className="text-muted-foreground py-3 text-sm">{start + idx}</TableCell>
-                    <TableCell className="max-w-[200px] py-3">
-                      <span className="block truncate font-medium">{project.title}</span>
-                    </TableCell>
-                    <TableCell className="max-w-[140px] py-3">
-                      <span className="text-muted-foreground block truncate text-sm">
-                        {client?.name ?? '—'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <Badge className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}>
-                        {PRIORITY_LABELS[project.priority]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {project.budget ? formatIDR(project.budget) : '—'}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        <Progress value={project.progress} className="h-2 w-20" />
-                        <span className="text-muted-foreground w-8 text-xs">{project.progress}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      {deadline ? (
-                        <span className="flex items-center gap-1 text-sm">
-                          {isOverdue && <AlertTriangle className="h-3 w-3 shrink-0 text-red-500" />}
-                          <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
-                            {format(deadline, 'dd MMM yyyy')}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onPointerDown={(e) => {
-                            e.preventDefault();
-                            router.push(`/dashboard/projects/${project.id}`);
-                          }}
-                        >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {paginated.map((project, idx) => (
+                <ProjectRow
+                  key={project.id}
+                  project={project}
+                  index={start + idx - 1}
+                  onSave={(data) => handleCellSave(project.id, data)}
+                  onDelete={() => handleDelete(project.id)}
+                  onNavigate={() => router.push(`/dashboard/projects/${project.id}`)}
+                  pendingClientId={pendingClientId}
+                  onAddingClientChange={(adding) => setAddingClientInline(adding)}
+                />
+              ))}
             </TableBody>
           </Table>
 
@@ -415,7 +312,7 @@ export default function ProjectsPage() {
           {totalPages > 1 && (
             <div className="border-border flex items-center justify-between border-t px-6 py-4">
               <p className="text-muted-foreground text-sm">
-                {filtered.length === 0 ? 'No results' : `Showing ${start}–${end} of ${filtered.length}`}
+                {filtered.length === 0 ? 'No results' : `Showing ${start}–${Math.min(start + PAGE_SIZE - 1, filtered.length)} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">
                 <Button
