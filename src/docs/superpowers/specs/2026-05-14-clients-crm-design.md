@@ -58,6 +58,7 @@ subscribeToClients(callback): () => void
 ### Revenue Sync
 
 `totalRevenue` di client doc diupdate setiap kali invoice status berubah ke `paid`:
+
 - Di `useInvoices` hook: saat `markAsPaid` → recalculate dari semua invoice client yang paid → update client doc
 - Ini dilakukan secara client-side saat invoice status berubah
 
@@ -76,7 +77,8 @@ subscribeToClients(callback): () => void
 ### ClientForm.tsx
 
 Dialog-based form:
-- Fields: Name* (required), Email, WhatsApp, Phone, Company, Website, Address, Notes
+
+- Fields: Name\* (required), Email, WhatsApp, Phone, Company, Website, Address, Notes
 - Validation: name required, email format check
 - Use existing Dialog + Input + Label + Button + Textarea components
 - Submit calls parent handler with form data
@@ -84,6 +86,7 @@ Dialog-based form:
 ### ClientProfile.tsx
 
 Full client detail view:
+
 - Header: avatar, name, company, contact links (WhatsApp, email, website)
 - 4 stats cards: Total Revenue, Total Projects, Active Projects, Total Invoices Paid
 - Tabbed sections: Projects | Invoices | Notes
@@ -92,6 +95,7 @@ Full client detail view:
 ### ClientList.tsx
 
 Grid layout:
+
 - Search bar (debounced, filters by name/company)
 - Filter tabs: All | Has Projects | Has Invoices
 - Sort: Recent | Name A-Z | Revenue High-Low
@@ -128,6 +132,7 @@ Content area based on active tab
 ### Invoice → Client Revenue Sync
 
 In `useInvoices` hook:
+
 1. `markAsPaid(id)` is called
 2. After updating invoice status, recalculate total from all paid invoices for that clientId
 3. Call `updateClient(clientId, { totalRevenue })` to sync
@@ -138,21 +143,23 @@ In `useInvoices` hook:
 - Use `query(projectsRef(), where("clientId", "==", clientId))` via Admin SDK... wait, for client-side we use JS SDK with `getDocsFromCache` first then `getDocsFromServer`. But browser restrictions make direct Firestore calls unreliable.
 
 **Solution:** Client profile page fetches all projects/invoices via existing hooks, then filters client-side:
+
 ```typescript
 const clientProjects = useMemo(
-  () => projects.filter(p => p.clientId === clientId),
-  [projects, clientId]
+  () => projects.filter((p) => p.clientId === clientId),
+  [projects, clientId],
 );
 ```
 
 ### ClientService for filtered queries
 
 Add helper to clientService for getting client-specific data:
+
 ```typescript
 // Fetches all projects for a specific client (client-side filter)
-export async function getProjectsByClient(clientId: string): Promise<Project[]>
+export async function getProjectsByClient(clientId: string): Promise<Project[]>;
 // Fetches all invoices for a specific client (client-side filter)
-export async function getInvoicesByClient(clientId: string): Promise<Invoice[]>
+export async function getInvoicesByClient(clientId: string): Promise<Invoice[]>;
 ```
 
 Note: Real-time subscription still uses `subscribeToProjects()` and `subscribeToInvoices()` from existing hooks. Filter happens client-side.

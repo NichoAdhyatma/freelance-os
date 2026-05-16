@@ -1,65 +1,129 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { ArrowRight, FolderKanban, Receipt, Sparkles, TrendingUp, Users } from 'lucide-react';
+import Link from 'next/link';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+const features = [
+  {
+    icon: FolderKanban,
+    title: 'Project Management',
+    description: 'Organize your work with Kanban boards and timeline views',
+  },
+  {
+    icon: Users,
+    title: 'Client CRM',
+    description: 'Manage contacts, track history, and monitor revenue per client',
+  },
+  {
+    icon: Receipt,
+    title: 'Invoice & Finance',
+    description: 'Create invoices, track payments, and analyze revenue',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Productivity Insights',
+    description: 'Get clarity on your business with real-time analytics',
+  },
+];
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="bg-background min-h-screen">
+      {/* Navigation */}
+      <header className="border-border border-b">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <div className="bg-primary flex h-9 w-9 items-center justify-center rounded-lg">
+              <Sparkles className="text-primary-foreground h-4 w-4" />
+            </div>
+            <span className="text-lg font-semibold">Freelancer OS</span>
+          </div>
+          <nav className="flex items-center gap-4">
+            <Link href="/login">
+              <Button variant="ghost">Sign In</Button>
+            </Link>
+            <Link href="/register">
+              <Button>Get Started</Button>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="px-4 py-24">
+        <div className="container mx-auto max-w-4xl text-center">
+          <h1 className="mb-6 text-5xl font-bold tracking-tight">
+            The Operating System
+            <br />
+            for <span className="text-primary">Freelancers</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-muted-foreground mx-auto mb-8 max-w-2xl text-xl">
+            The modern operating system for freelancers. Manage projects, clients, invoices, and
+            revenue in one beautiful workspace.
           </p>
+          <div className="flex justify-center gap-4">
+            <Link href="/register">
+              <Button size="lg">
+                Start Free
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button variant="outline" size="lg">
+                Sign In
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Features */}
+      <section className="bg-muted/30 px-4 py-16">
+        <div className="container mx-auto max-w-6xl">
+          <h2 className="mb-12 text-center text-3xl font-bold">Everything You Need</h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature, index) => (
+              <Card key={index} className="bg-card">
+                <CardHeader>
+                  <div className="bg-primary/10 mb-2 flex h-10 w-10 items-center justify-center rounded-lg">
+                    <feature.icon className="text-primary h-5 w-5" />
+                  </div>
+                  <CardTitle className="text-lg">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription>{feature.description}</CardDescription>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* CTA */}
+      <section className="px-4 py-20">
+        <div className="container mx-auto max-w-2xl text-center">
+          <h2 className="mb-4 text-3xl font-bold">Ready to Get Organized?</h2>
+          <p className="text-muted-foreground mb-8">
+            Join thousands of freelancers who run their business with Freelancer OS
+          </p>
+          <Link href="/register">
+            <Button size="lg">
+              Start Free
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-border border-t px-4 py-8">
+        <div className="text-muted-foreground container mx-auto text-center text-sm">
+          <p>Built with care for freelancers worldwide</p>
+        </div>
+      </footer>
     </div>
   );
 }

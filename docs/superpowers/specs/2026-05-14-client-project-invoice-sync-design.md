@@ -17,6 +17,7 @@ Menyinkronkan 3 modul (Client, Project, Invoice) agar saling berkorelasi dan men
 **Center of gravity = Project.** Semua flow berputar di project karena di situnya revenue terjadi.
 
 Natural flow:
+
 ```
 Client baru → Project → Invoice
 ```
@@ -28,14 +29,16 @@ Client baru → Project → Invoice
 **File:** `src/components/projects/ProjectForm.tsx`
 
 **Change:**
+
 - Add client selector field (optional) — searchable dropdown
 - Same pattern as InvoiceForm client selector: Command + Popover
 - "Add New Client" button → opens slide-over sheet (QuickAddClientSheet)
 
 **QuickAddClientSheet:**
+
 - New component: `src/components/clients/QuickAddClientSheet.tsx`
 - Uses `Sheet` from shadcn/ui (right-side slide-over)
-- Fields: Name*, Email, WhatsApp, Company, Notes (simplified)
+- Fields: Name\*, Email, WhatsApp, Company, Notes (simplified)
 - On submit: creates client → auto-selects it in ProjectForm
 - Does NOT close ProjectForm — stays open with client selected
 
@@ -46,6 +49,7 @@ Client baru → Project → Invoice
 **File:** `src/components/invoices/InvoiceForm.tsx`
 
 **Field ordering:**
+
 ```
 Client * (searchable dropdown)
   ↓
@@ -57,6 +61,7 @@ Notes
 ```
 
 **Logic:**
+
 - User selects project → `clientId` auto-filled from project's `clientId`
 - Client field becomes read-only after auto-fill — user can override
 - Project dropdown filtered by selected client (if client selected first)
@@ -67,12 +72,14 @@ Notes
 ## Section 3 — InvoiceCard & ClientCard Enhancements
 
 **InvoiceCard** (`src/components/invoices/InvoiceCard.tsx`):
+
 - Display client name (resolved via `useClients().getClientById()`)
 - Display project title (resolved via `useProjects()`)
 - Client name clickable → navigate to `/dashboard/clients/[clientId]`
 - "No client" / "No project" for empty states
 
 **ClientCard** (`src/components/clients/ClientCard.tsx`):
+
 - Add invoice count badge using `useInvoices` hook
 
 ---
@@ -90,14 +97,14 @@ Notes
 
 ## Component Inventory
 
-| Component | Action |
-|---|---|
-| `src/components/clients/QuickAddClientSheet.tsx` | **NEW** — slide-over for inline client creation |
-| `src/components/projects/ProjectForm.tsx` | **MODIFY** — add client selector + quick-add trigger |
-| `src/components/invoices/InvoiceForm.tsx` | **MODIFY** — add project selector + client auto-fill |
-| `src/components/invoices/InvoiceCard.tsx` | **MODIFY** — resolve client/project names |
-| `src/components/shared/Sidebar.tsx` | **MODIFY** — add quick-create FAB |
-| `src/components/clients/ClientCard.tsx` | **MODIFY** — add invoice count badge |
+| Component                                        | Action                                               |
+| ------------------------------------------------ | ---------------------------------------------------- |
+| `src/components/clients/QuickAddClientSheet.tsx` | **NEW** — slide-over for inline client creation      |
+| `src/components/projects/ProjectForm.tsx`        | **MODIFY** — add client selector + quick-add trigger |
+| `src/components/invoices/InvoiceForm.tsx`        | **MODIFY** — add project selector + client auto-fill |
+| `src/components/invoices/InvoiceCard.tsx`        | **MODIFY** — resolve client/project names            |
+| `src/components/shared/Sidebar.tsx`              | **MODIFY** — add quick-create FAB                    |
+| `src/components/clients/ClientCard.tsx`          | **MODIFY** — add invoice count badge                 |
 
 ---
 

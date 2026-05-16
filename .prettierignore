@@ -1,0 +1,12 @@
+.next
+build
+out
+node_modules
+package-lock.json
+*.lock
+.env*
+.agents
+service-account.json
+firestore.rules
+firestore.indexes.json
+firebase.json

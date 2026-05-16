@@ -21,6 +21,7 @@ Membuat task management system di dalam project. Setiap project punya dedicated 
 ## Data Model
 
 ### Task Collection
+
 **Firestore path:** `users/{uid}/projects/{projectId}/tasks/{taskId}`
 
 ```typescript
@@ -28,8 +29,8 @@ interface Task {
   id: string;
   title: string;
   description?: string;
-  status: "todo" | "in_progress" | "done";
-  priority: "low" | "medium" | "high" | "urgent";
+  status: 'todo' | 'in_progress' | 'done';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
   assignee?: string;
   dueDate?: Timestamp;
   order: number; // for drag ordering within column
@@ -41,6 +42,7 @@ interface Task {
 **Task kanban columns:** Todo | In Progress | Done
 
 ### Progress Sync
+
 - `useTasks` hook recalculates progress whenever tasks change
 - Formula: `(tasks with status "done" / total tasks) × 100`
 - Updates `project.progress` via `projectService.updateProjectProgress()` — fire-and-forget
@@ -50,10 +52,12 @@ interface Task {
 ## Pages & Components
 
 ### 1. Project Detail Page
+
 **URL:** `/dashboard/projects/[id]`
 **File:** `src/app/dashboard/projects/[id]/page.tsx`
 
 Layout:
+
 ```
 ┌─────────────────────────────────────────┐
 │ ← Projects  |  [Project Title]  | Edit  │
@@ -67,27 +71,32 @@ Layout:
 ```
 
 Tabs:
+
 - **Tasks** — Kanban board (default)
 - **Details** — Project info: title, description, client, deadline, budget, priority, status
 - **Notes** — Project notes
 
 ### 2. Task Kanban Board
+
 **File:** `src/components/projects/TaskKanban.tsx`
 **Library:** `@dnd-kit/core` + `@dnd-kit/sortable`
 
 Columns: Todo | In Progress | Done
 
 **Drag behavior:**
+
 - Drag task between columns → update `status` in Firestore
 - Drag within column → update `order` field
 - Both fire immediately to Firestore
 
 **Add task inline:**
+
 - Click `+` in any column → inline Input field
 - Type title + Enter → create task with that column's status
 - Escape → cancel
 
 ### 3. Projects Page — Table Grid
+
 **File:** `src/app/dashboard/projects/page.tsx`
 
 Replaces Kanban/List tabs with table grid view.
@@ -101,6 +110,7 @@ Columns: No | Title | Client | Status | Priority | Progress | Deadline | Actions
 - Deadline shows warning icon if overdue
 
 ### 4. ProjectCard → Clickable
+
 **File:** `src/components/projects/ProjectCard.tsx`
 
 - Click anywhere on card → navigate to `/dashboard/projects/[id]`
@@ -111,22 +121,24 @@ Columns: No | Title | Client | Status | Priority | Progress | Deadline | Actions
 ## File Inventory
 
 ### New Files
-| File | Description |
-|---|---|
-| `src/types/task.ts` | Task type definition |
-| `src/lib/services/taskService.ts` | Task CRUD + real-time subscription |
-| `src/hooks/useTasks.ts` | React hook for task management |
-| `src/components/projects/TaskCard.tsx` | Task card for kanban (drag handle, priority badge, due date) |
-| `src/components/projects/TaskKanban.tsx` | DnD kanban board with 3 columns |
-| `src/components/projects/TaskForm.tsx` | Add/edit task dialog |
-| `src/app/dashboard/projects/[id]/page.tsx` | Project detail page |
+
+| File                                       | Description                                                  |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `src/types/task.ts`                        | Task type definition                                         |
+| `src/lib/services/taskService.ts`          | Task CRUD + real-time subscription                           |
+| `src/hooks/useTasks.ts`                    | React hook for task management                               |
+| `src/components/projects/TaskCard.tsx`     | Task card for kanban (drag handle, priority badge, due date) |
+| `src/components/projects/TaskKanban.tsx`   | DnD kanban board with 3 columns                              |
+| `src/components/projects/TaskForm.tsx`     | Add/edit task dialog                                         |
+| `src/app/dashboard/projects/[id]/page.tsx` | Project detail page                                          |
 
 ### Modified Files
-| File | Change |
-|---|---|
-| `src/components/projects/ProjectCard.tsx` | Clickable navigation to detail |
-| `src/app/dashboard/projects/page.tsx` | Replace Kanban/List with table grid |
-| `package.json` | Add `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` |
+
+| File                                      | Change                                                         |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| `src/components/projects/ProjectCard.tsx` | Clickable navigation to detail                                 |
+| `src/app/dashboard/projects/page.tsx`     | Replace Kanban/List with table grid                            |
+| `package.json`                            | Add `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` |
 
 ---
 
@@ -138,7 +150,10 @@ Columns: No | Title | Client | Status | Priority | Progress | Deadline | Actions
   "indexes": [
     {
       "collectionGroup": "tasks",
-      "fields": [{ "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "order", "order": "ASCENDING" }]
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "order", "order": "ASCENDING" }
+      ]
     }
   ]
 }

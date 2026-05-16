@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
+import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCardGrid, SummaryCard } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
@@ -314,7 +315,7 @@ export default function FinancePage() {
                 const project = inv.projectId ? projects.find((p) => p.id === inv.projectId) : null;
 
                 return (
-                  <TableRow key={inv.id} className="border-border hover:bg-accent/50">
+                  <TableRow key={inv.id} className="border-border hover:bg-accent/50" onContextMenu={(e) => openContextMenu(e.clientX, e.clientY, [{ label: "Edit Invoice", icon: <Pencil className="h-4 w-4" />, onClick: () => handleEdit(inv) }, { label: "Hapus Invoice", icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: () => handleDelete(inv.id) }])}>
                     <TableCell className="text-muted-foreground py-3 text-sm">
                       {start + idx}
                     </TableCell>

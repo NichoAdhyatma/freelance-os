@@ -395,7 +395,7 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
           value={String(progress)}
           onChange={(e) => {
             const n = parseInt(e.target.value, 10);
-            setProgress(isNaN(n) ? 0 : Math.min(100, Math.max(0, n));
+            setProgress(isNaN(n) ? 0 : Math.min(100, Math.max(0, n)));
           }}
           inputMode="numeric"
           className="h-8 w-14 text-center text-sm"

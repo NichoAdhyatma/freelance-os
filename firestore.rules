@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Helper function to check if user is accessing their own subcollection
+    function isUserSubcollection(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User document - can only be read/written by the user themselves
+    // Deletion is DISABLED to prevent orphaned license/billing data in a SaaS
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // User's projects subcollection
+    match /users/{userId}/projects/{projectId} {
+      allow read, write: if isUserSubcollection(userId);
+
+      // Tasks subcollection under each project
+      match /tasks/{taskId} {
+        allow read, write: if isUserSubcollection(userId);
+      }
+    }
+
+    // User's clients subcollection
+    match /users/{userId}/clients/{clientId} {
+      allow read, write: if isUserSubcollection(userId);
+    }
+
+    // User's invoices subcollection
+    match /users/{userId}/invoices/{invoiceId} {
+      allow read, write: if isUserSubcollection(userId);
+    }
+
+    // Licenses collection - anyone can read (keys are public on activation page)
+    // Writes must go through Admin SDK (server-side only)
+    match /licenses/{licenseId} {
+      allow read: if true;
+      allow write: if false; // Admin only
+    }
+  }
+}
