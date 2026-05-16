@@ -1,11 +1,11 @@
 'use client';
 
+import { ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { AlertTriangle, CalendarIcon, Check, Plus, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { CalendarIcon, Plus } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useClients } from '@/hooks/useClients';
-import { formatIDR } from '@/lib/utils';
 import type { Project, ProjectFormData, ProjectPriority, ProjectStatus } from '@/types/project';
 
 const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
@@ -23,10 +22,6 @@ const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
   { value: 'urgent', label: 'Urgent' },
 ];
 
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent',
-};
-
 interface ProjectInlineRowProps {
   mode: 'add' | 'edit';
   initialData?: Project | null;
@@ -34,9 +29,18 @@ interface ProjectInlineRowProps {
   onCancel: () => void;
   pendingClientId?: string | null;
   onAddingClientChange?: (adding: boolean) => void;
+  onNavigate?: () => void;
 }
 
-export function ProjectInlineRow({ mode, initialData, onSave, onCancel, pendingClientId, onAddingClientChange }: ProjectInlineRowProps) {
+export function ProjectInlineRow({
+  mode,
+  initialData,
+  onSave,
+  onCancel,
+  pendingClientId,
+  onAddingClientChange,
+  onNavigate,
+}: ProjectInlineRowProps) {
   const { clients } = useClients();
 
   const [title, setTitle] = useState(initialData?.title ?? '');
@@ -48,6 +52,7 @@ export function ProjectInlineRow({ mode, initialData, onSave, onCancel, pendingC
   const [saving, setSaving] = useState(false);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLTableRowElement>(null);
 
   // Sync pendingClientId from parent (after client creation from card)
   useEffect(() => {
@@ -63,11 +68,12 @@ export function ProjectInlineRow({ mode, initialData, onSave, onCancel, pendingC
     }
   }, [mode]);
 
-  const handleSave = async () => {
+  const handleSaveAndExit = useCallback(async () => {
     if (!title.trim()) {
       toast.error('Title is required');
       return;
     }
+    if (saving) return;
     setSaving(true);
     try {
       await onSave({
@@ -79,28 +85,31 @@ export function ProjectInlineRow({ mode, initialData, onSave, onCancel, pendingC
         deadline,
         status: (initialData?.status as ProjectStatus) ?? 'backlog',
       });
-      toast.success(mode === 'add' ? 'Project created' : 'Project updated');
+      onCancel();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
-  };
+  }, [title, clientId, priority, budget, progress, deadline, saving, onSave, onCancel, initialData?.status]);
 
-  const handleBudgetChange = (raw: string) => {
-    setBudget(raw.replace(/\D/g, ''));
-  };
-
+  const handleBudgetChange = (raw: string) => setBudget(raw.replace(/\D/g, ''));
   const handleProgressChange = (raw: string) => {
     const num = parseInt(raw, 10);
     if (isNaN(num)) { setProgress(0); return; }
     setProgress(Math.min(100, Math.max(0, num)));
   };
 
+  const handleBlur = (e: React.FocusEvent<HTMLTableRowElement>) => {
+    if (!rowRef.current?.contains(e.relatedTarget as Node)) {
+      handleSaveAndExit();
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && e.currentTarget.name === 'title') {
       e.preventDefault();
-      handleSave();
+      handleSaveAndExit();
     }
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -111,7 +120,7 @@ export function ProjectInlineRow({ mode, initialData, onSave, onCancel, pendingC
   const pyClass = mode === 'add' ? 'py-2' : 'py-3';
 
   return (
-    <tr className={mode === 'add' ? 'bg-muted/20 border-b border-border' : 'border-b border-border hover:bg-accent/50'}>
+    <tr ref={rowRef} onBlur={handleBlur} className={mode === 'add' ? 'bg-muted/20 border-b border-border' : 'border-b border-border hover:bg-accent/50'}>
       {/* # */}
       <td className={`${pyClass} pl-4 pr-2`}>
         <span className="text-muted-foreground text-sm">{mode === 'add' ? '+' : '✏️'}</span>
@@ -218,14 +227,19 @@ export function ProjectInlineRow({ mode, initialData, onSave, onCancel, pendingC
 
       {/* Actions */}
       <td className={`${pyClass} pr-4`}>
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={handleSave} disabled={saving}>
-            <Check className="h-3.5 w-3.5 text-green-500" />
+        {onNavigate ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              handleSaveAndExit().then(() => onNavigate?.());
+            }}
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
           </Button>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onCancel}>
-            <X className="h-3.5 w-3.5 text-muted-foreground" />
-          </Button>
-        </div>
+        ) : null}
       </td>
     </tr>
   );

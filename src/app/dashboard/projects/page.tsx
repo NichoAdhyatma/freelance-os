@@ -1,9 +1,12 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertTriangle, FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, FolderKanban, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+
+import { openContextMenu } from '@/components/shared/RowContextMenu';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,6 +58,7 @@ const PAGE_SIZE = 10;
 export default function ProjectsPage() {
   setDashboardTitle('Projects');
 
+  const router = useRouter();
   const { loading: authLoading } = useAuth();
   const { projects, loading, addProject, editProject, removeProject } = useProjects();
   const { getClientById } = useClients();
@@ -325,6 +329,7 @@ export default function ProjectsPage() {
                     onCancel={() => setEditingProjectId(null)}
                     pendingClientId={pendingClientId}
                     onAddingClientChange={(adding) => setAddingClientInline(adding)}
+                    onNavigate={() => router.push(`/dashboard/projects/${editingProjectId}`)}
                   />
                 );
               })()}
@@ -343,6 +348,12 @@ export default function ProjectsPage() {
                       key={project.id}
                       className="border-border hover:bg-accent/50 cursor-pointer"
                       onClick={() => setEditingProjectId(project.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        openContextMenu(e.clientX, e.clientY, [
+                          { label: 'Delete Project', destructive: true, onClick: () => handleDelete(project.id) }
+                        ]);
+                      }}
                     >
                     <TableCell className="text-muted-foreground py-3 text-sm">{start + idx}</TableCell>
                     <TableCell className="max-w-[200px] py-3">
@@ -385,17 +396,12 @@ export default function ProjectsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => setEditingProjectId(project.id)}
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            router.push(`/dashboard/projects/${project.id}`);
+                          }}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive h-7 w-7"
-                          onClick={() => handleDelete(project.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <ArrowRight className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
