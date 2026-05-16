@@ -2,7 +2,6 @@
 
 import { format } from 'date-fns';
 import { AlertTriangle, FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -22,6 +21,7 @@ import {
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { ProjectInlineRow } from '@/components/projects/ProjectInlineRow';
+import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
@@ -55,13 +55,14 @@ const PAGE_SIZE = 10;
 export default function ProjectsPage() {
   setDashboardTitle('Projects');
 
-  const router = useRouter();
   const { loading: authLoading } = useAuth();
   const { projects, loading, addProject, editProject, removeProject } = useProjects();
   const { getClientById } = useClients();
 
   const [addingRow, setAddingRow] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [addingClientInline, setAddingClientInline] = useState(false);
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('recent');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -143,16 +144,15 @@ export default function ProjectsPage() {
   const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleOpenNew = () => setAddingRow(true);
-
-  const handleCancelAdd = () => setAddingRow(false);
-
-  const handleEditInline = (projectId: string) => {
-    setAddingRow(false);
-    setEditingProjectId(projectId);
+  const handleOpenNew = () => {
+    setPendingClientId(null);
+    setAddingRow(true);
   };
 
-  const handleCancelEdit = () => setEditingProjectId(null);
+  const handleCancelAdd = () => {
+    setAddingRow(false);
+    setPendingClientId(null);
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this project? This action cannot be undone.')) return;
@@ -169,18 +169,6 @@ export default function ProjectsPage() {
       await addProject(data);
       toast.success('Project created');
       setAddingRow(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
-      throw err;
-    }
-  };
-
-  const handleEditSubmitInline = async (data: ProjectFormData) => {
-    if (!editingProjectId) return;
-    try {
-      await editProject(editingProjectId, data);
-      toast.success('Project updated');
-      setEditingProjectId(null);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
       throw err;
@@ -242,8 +230,35 @@ export default function ProjectsPage() {
         placeholder="Search projects or clients..."
       />
 
+      {/* Inline add row */}
+      {addingRow && (
+        <>
+          <div className="overflow-hidden rounded-lg border">
+            <table className="w-full">
+              <tbody>
+                <ProjectInlineRow
+                  mode="add"
+                  onSave={handleSubmitInline}
+                  onCancel={handleCancelAdd}
+                  pendingClientId={pendingClientId}
+                  onAddingClientChange={(adding) => setAddingClientInline(adding)}
+                />
+              </tbody>
+            </table>
+          </div>
+          <InlineAddClientCard
+            open={addingClientInline}
+            onClose={() => setAddingClientInline(false)}
+            onCreated={(clientId) => {
+              setPendingClientId(clientId);
+              setAddingClientInline(false);
+            }}
+          />
+        </>
+      )}
+
       {/* Table or Empty State */}
-      {paginated.length === 0 ? (
+      {paginated.length === 0 && !addingRow ? (
         <EmptyState
           variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No projects found' : 'No projects yet'}
@@ -293,40 +308,42 @@ export default function ProjectsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* Inline add row */}
-              {addingRow && (
-                <ProjectInlineRow
-                  mode="add"
-                  onSave={handleSubmitInline}
-                  onCancel={handleCancelAdd}
-                />
-              )}
-
-              {/* Inline edit row */}
+              {/* Edit row — replaces display row at same position */}
               {editingProjectId && (() => {
                 const project = projects.find((p) => p.id === editingProjectId);
-                return project ? (
+                if (!project) return null;
+                return (
                   <ProjectInlineRow
+                    key={project.id}
                     mode="edit"
                     initialData={project}
-                    onSave={handleEditSubmitInline}
-                    onCancel={handleCancelEdit}
+                    onSave={async (data) => {
+                      await editProject(editingProjectId, data);
+                      toast.success('Project updated');
+                      setEditingProjectId(null);
+                    }}
+                    onCancel={() => setEditingProjectId(null)}
+                    pendingClientId={pendingClientId}
+                    onAddingClientChange={(adding) => setAddingClientInline(adding)}
                   />
-                ) : null;
+                );
               })()}
 
               {/* Existing rows */}
-              {paginated.map((project, idx) => {
-                const client = project.clientId ? getClientById(project.clientId) : null;
-                const deadline = project.deadline?.toDate();
-                const isOverdue = deadline && deadline < new Date() && project.status !== 'done';
+              {paginated
+                .filter((p) => p.id !== editingProjectId)
+                .map((project, idx) => {
+                  const client = project.clientId ? getClientById(project.clientId) : null;
+                  const deadline = project.deadline?.toDate();
+                  const isOverdue = deadline && deadline < new Date() && project.status !== 'done';
 
-                return (
-                  <TableRow
-                    key={project.id}
-                    className="border-border hover:bg-accent/50 cursor-pointer"
-                    onClick={() => router.push(`/dashboard/projects/${project.id}`)}
-                  >
+                  return (
+                    <TableRow
+                      data-edit-row
+                      key={project.id}
+                      className="border-border hover:bg-accent/50 cursor-pointer"
+                      onClick={() => setEditingProjectId(project.id)}
+                    >
                     <TableCell className="text-muted-foreground py-3 text-sm">{start + idx}</TableCell>
                     <TableCell className="max-w-[200px] py-3">
                       <span className="block truncate font-medium">{project.title}</span>
@@ -368,7 +385,7 @@ export default function ProjectsPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => handleEditInline(project.id)}
+                          onClick={() => setEditingProjectId(project.id)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
