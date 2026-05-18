@@ -2,10 +2,12 @@
 
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { CalendarIcon, Check, ChevronDown, Plus, User } from 'lucide-react';
+import { CalendarIcon, Check, ChevronDown, FileText, Plus, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { QuickAddClientSheet } from '@/components/clients/QuickAddClientSheet';
+import { QuickAddInvoiceSheet } from '@/components/invoices/QuickAddInvoiceSheet';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -36,6 +38,8 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useClients } from '@/hooks/useClients';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useProjects } from '@/hooks/useProjects';
 import { cn } from '@/lib/utils';
 import {
   type Project,
@@ -67,6 +71,8 @@ const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
 
 export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: ProjectFormProps) {
   const { clients } = useClients();
+  const { invoices } = useInvoices();
+  const { projects } = useProjects();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -75,10 +81,12 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
   const [clientId, setClientId] = useState('');
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [invoiceId, setInvoiceId] = useState('');
+  const [invoicePopoverOpen, setInvoicePopoverOpen] = useState(false);
+  const [quickAddInvoiceOpen, setQuickAddInvoiceOpen] = useState(false);
   const [status, setStatus] = useState<ProjectStatus>('backlog');
   const [priority, setPriority] = useState<ProjectPriority>('medium');
   const [deadline, setDeadline] = useState<Date | undefined>(undefined);
-  const [budget, setBudget] = useState('');
 
   // Reset form when dialog opens/closes or initialData changes
   useEffect(() => {
@@ -87,18 +95,18 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
         setTitle(initialData.title || '');
         setDescription(initialData.description || '');
         setClientId(initialData.clientId || '');
+        setInvoiceId(initialData.invoiceId ?? '');
         setStatus(initialData.status as ProjectStatus);
         setPriority(initialData.priority as ProjectPriority);
         setDeadline(initialData.deadline ? initialData.deadline.toDate() : undefined);
-        setBudget(initialData.budget ? String(initialData.budget) : '');
       } else {
         setTitle('');
         setDescription('');
         setClientId('');
+        setInvoiceId('');
         setStatus('backlog');
         setPriority('medium');
         setDeadline(undefined);
-        setBudget('');
       }
       setErrors({});
     }
@@ -107,7 +115,6 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = 'Title is required';
-    if (budget && isNaN(Number(budget))) newErrors.budget = 'Budget must be a number';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -122,10 +129,10 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
         title: title.trim(),
         description: description.trim() || undefined,
         clientId: clientId || undefined,
+        invoiceId: invoiceId || undefined,
         status,
         priority,
         deadline,
-        budget: budget ? Number(budget) : undefined,
       });
       onOpenChange(false);
     } catch {
@@ -246,6 +253,89 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
             </Popover>
           </div>
 
+          {/* Invoice */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Invoice</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={() => setQuickAddInvoiceOpen(true)}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Add New
+              </Button>
+            </div>
+            <Popover open={invoicePopoverOpen} onOpenChange={setInvoicePopoverOpen}>
+              <PopoverTrigger>
+                <div
+                  role="combobox"
+                  className={cn(
+                    'flex h-10 w-full items-center justify-start rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer hover:bg-muted transition-colors',
+                    !invoiceId && 'text-muted-foreground',
+                  )}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0" />
+                  {invoiceId
+                    ? (() => {
+                        const inv = invoices.find((i) => i.id === invoiceId);
+                        return inv ? `${inv.invoiceNumber} · Rp ${inv.amount.toLocaleString('id-ID')}` : 'Select invoice';
+                      })()
+                    : 'No invoice (optional)'}
+                  <ChevronDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-[360px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search invoices..." autoFocus />
+                  <CommandList>
+                    <CommandEmpty>
+                      {invoices.length === 0 ? 'No invoices yet.' : 'No invoice found.'}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {invoices.map((inv) => {
+                        const usedByProject = inv.projectId ? projects.find((p) => p.id === inv.projectId) : null;
+                        const isUsedByOther = usedByProject && usedByProject.id !== initialData?.id;
+                        return (
+                          <CommandItem
+                            key={inv.id}
+                            value={inv.id}
+                            onSelect={() => {
+                              setInvoiceId(inv.id);
+                              setInvoicePopoverOpen(false);
+                            }}
+                            className="flex flex-col items-start gap-0.5 py-2"
+                          >
+                            <div className="flex w-full items-center gap-2">
+                              <Check
+                                className={cn(
+                                  'h-4 w-4 shrink-0',
+                                  invoiceId === inv.id ? 'opacity-100' : 'opacity-0',
+                                )}
+                              />
+                              <span className="truncate text-sm font-medium">{inv.invoiceNumber}</span>
+                              <span className="ml-auto text-xs text-muted-foreground">
+                                Rp {inv.amount.toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                            {isUsedByOther && (
+                              <div className="ml-6">
+                                <Badge variant="secondary" className="text-xs">
+                                  Used in {usedByProject.title}
+                                </Badge>
+                              </div>
+                            )}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
+
           {/* Status & Priority */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -281,43 +371,28 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
             </div>
           </div>
 
-          {/* Deadline & Budget */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Deadline</Label>
-              <Popover>
-                <PopoverTrigger
-                  className={cn(
-                    'w-full justify-start text-left font-normal h-10 px-3 py-2 rounded-md border bg-background text-sm flex items-center',
-                    !deadline && 'text-muted-foreground',
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {deadline ? format(deadline, 'dd MMM yyyy', { locale: id }) : 'Pick date'}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={deadline}
-                    onSelect={setDeadline}
-                    disabled={(date) => date < new Date('2020-01-01')}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="budget">Budget (IDR)</Label>
-              <Input
-                id="budget"
-                type="number"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                placeholder="e.g. 5000000"
-                className={errors.budget ? 'border-destructive' : ''}
-              />
-              {errors.budget && <p className="text-destructive text-xs">{errors.budget}</p>}
-            </div>
+          {/* Deadline */}
+          <div className="space-y-1.5">
+            <Label>Deadline</Label>
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  'w-full justify-start text-left font-normal h-10 px-3 py-2 rounded-md border bg-background text-sm flex items-center',
+                  !deadline && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {deadline ? format(deadline, 'dd MMM yyyy', { locale: id }) : 'Pick date'}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={deadline}
+                  onSelect={setDeadline}
+                  disabled={(date) => date < new Date('2020-01-01')}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <DialogFooter>
@@ -336,6 +411,16 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
               setClientId(newClientId);
               setClientPopoverOpen(false);
             }}
+          />
+
+          <QuickAddInvoiceSheet
+            open={quickAddInvoiceOpen}
+            onOpenChange={setQuickAddInvoiceOpen}
+            onCreated={(newInvoiceId) => {
+              setInvoiceId(newInvoiceId);
+              setInvoicePopoverOpen(false);
+            }}
+            initialClientId={clientId || undefined}
           />
         </form>
       </DialogContent>
