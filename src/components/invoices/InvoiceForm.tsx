@@ -6,7 +6,7 @@ const DEFAULT_DUE_DATE = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { CalendarIcon, Check, ChevronDown, FolderKanban, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Textarea } from '@/components/ui/textarea';
 import { useClients } from '@/hooks/useClients';
 import { useProjects } from '@/hooks/useProjects';
+import { updateProject } from '@/lib/services/projectService';
 import { cn } from '@/lib/utils';
 import { type Invoice, type InvoiceFormData, InvoiceStatus } from '@/types/invoice';
 
@@ -56,12 +57,14 @@ export function InvoiceForm({ open, onOpenChange, onSubmit, initialData }: Invoi
   const [discount, setDiscount] = useState('');
   const [dueDate, setDueDate] = useState<Date>(DEFAULT_DUE_DATE);
   const [notes, setNotes] = useState('');
+  const initialProjectId = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) {
       if (initialData) {
         setClientId(initialData.clientId || '');
         setProjectId(initialData.projectId || '');
+        initialProjectId.current = initialData.projectId || null;
         setAmount(String(initialData.amount));
         setTax(String(initialData.tax ?? 0));
         setDiscount(String(initialData.discount ?? 0));
@@ -80,12 +83,23 @@ export function InvoiceForm({ open, onOpenChange, onSubmit, initialData }: Invoi
   }, [open, initialData]);
 
   // Auto-fill client when a project is selected
-  const handleProjectSelect = (selectedProjectId: string) => {
+  const handleProjectSelect = async (selectedProjectId: string) => {
+    const prevProjectId = projectId;
     setProjectId(selectedProjectId);
     setProjectPopoverOpen(false);
     const project = projects.find((p) => p.id === selectedProjectId);
     if (project?.clientId) {
       setClientId(project.clientId);
+    }
+    // Bidirectional sync
+    if (prevProjectId && prevProjectId !== selectedProjectId) {
+      await updateProject(prevProjectId, { invoiceId: undefined });
+    }
+    if (selectedProjectId && initialData?.id) {
+      await updateProject(selectedProjectId, { invoiceId: initialData.id });
+    } else if (!selectedProjectId && prevProjectId && initialData?.id) {
+      // Cleared: only remove from old project (don't assign to new)
+      await updateProject(prevProjectId, { invoiceId: undefined });
     }
   };
 
