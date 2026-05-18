@@ -220,20 +220,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
-              <span className="text-sm font-bold text-green-400">IDR</span>
-            </div>
-            <div>
-              <p className="text-sm font-medium">
-                {project.budget ? formatIDR(project.budget) : '—'}
-              </p>
-              <p className="text-muted-foreground text-xs">Budget</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Tabs */}
@@ -277,11 +263,6 @@ export default function ProjectDetailPage({ params }: PageProps) {
                     {isProjectOverdue && <AlertTriangle className="h-3 w-3 text-red-500" />}
                     {deadlineDate ? format(deadlineDate, 'dd MMMM yyyy') : 'No deadline'}
                   </p>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-muted-foreground text-xs tracking-wide uppercase">Budget</p>
-                  <p className="text-sm">{project.budget ? formatIDR(project.budget) : '—'}</p>
                 </div>
 
                 <div className="space-y-1">
