@@ -35,6 +35,7 @@ interface QuickAddInvoiceSheetProps {
   onOpenChange: (open: boolean) => void;
   onCreated: (invoiceId: string) => void;
   initialClientId?: string;
+  initialProjectId?: string;
 }
 
 export function QuickAddInvoiceSheet({
@@ -42,6 +43,7 @@ export function QuickAddInvoiceSheet({
   onOpenChange,
   onCreated,
   initialClientId,
+  initialProjectId,
 }: QuickAddInvoiceSheetProps) {
   const { clients } = useClients();
   const [loading, setLoading] = useState(false);
@@ -97,6 +99,7 @@ export function QuickAddInvoiceSheet({
         clientId: clientId.trim(),
         amount: Number(amount),
         dueDate,
+        projectId: initialProjectId,
       });
       toast.success('Invoice created successfully');
       onCreated(newInvoiceId);
