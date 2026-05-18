@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, Copy, Plus, Trash2, ChevronDown, User } from 'lucide-react';
+import { ArrowRight, Copy, Plus, Trash2, ChevronDown, User, Download } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -61,6 +62,7 @@ export function InvoiceRow({
   onAddClient,
   onNavigate,
 }: InvoiceRowProps) {
+  const router = useRouter();
   const dueDate = invoice.dueDate.toDate();
   const isOverdue = dueDate < new Date() && invoice.status !== 'paid' && invoice.status !== 'cancelled';
   const statusColor = STATUS_COLORS[invoice.status] ?? 'bg-muted text-muted-foreground';
@@ -334,14 +336,25 @@ export function InvoiceRow({
 
       {/* Actions */}
       <TableCell className="py-3 pr-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onPointerDown={(e) => { e.preventDefault(); onNavigate(); }}
-        >
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            title="Download PDF"
+            onPointerDown={(e) => { e.preventDefault(); onNavigate(); }}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onPointerDown={(e) => { e.preventDefault(); router.push(`/dashboard/finance/${invoice.id}`); }}
+          >
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );
