@@ -19,6 +19,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
+import { updateInvoice } from '@/lib/services/invoiceService';
 import type { Project, ProjectFormData, ProjectPriority } from '@/types/project';
 
 const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
@@ -326,9 +327,16 @@ export function ProjectRow({ project, index, onSave, onDelete, onDuplicate, onAd
                 <div className="max-h-56 overflow-y-auto">
                   <button
                     className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
-                    onClick={() => {
+                    onClick={async () => {
+                      if (project.invoiceId) {
+                        const prev = invoices.find(i => i.id === project.invoiceId);
+                        if (prev?.projectId === project.id) {
+                          await updateInvoice(project.invoiceId, { projectId: null });
+                        }
+                      }
                       setEditInvoice('');
-                      onSave({ invoiceId: undefined }).then(() => setOpen(false));
+                      await onSave({ invoiceId: undefined });
+                      setOpen(false);
                     }}
                   >
                     — No invoice —
@@ -340,9 +348,19 @@ export function ProjectRow({ project, index, onSave, onDelete, onDuplicate, onAd
                       <button
                         key={inv.id}
                         className="flex w-full flex-col items-start gap-0.5 px-2 py-2 text-sm hover:bg-muted"
-                        onClick={() => {
+                        onClick={async () => {
+                          // Clear previous invoice's projectId if it was linked to this project
+                          if (project.invoiceId && project.invoiceId !== inv.id) {
+                            const prev = invoices.find(i => i.id === project.invoiceId);
+                            if (prev?.projectId === project.id) {
+                              await updateInvoice(project.invoiceId, { projectId: null });
+                            }
+                          }
+                          // Link new invoice to this project
+                          await updateInvoice(inv.id, { projectId: project.id });
                           setEditInvoice(inv.id);
-                          onSave({ invoiceId: inv.id }).then(() => setOpen(false));
+                          await onSave({ invoiceId: inv.id });
+                          setOpen(false);
                         }}
                       >
                         <div className="flex w-full items-center gap-2">
