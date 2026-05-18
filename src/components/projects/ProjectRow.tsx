@@ -473,6 +473,79 @@ function ClientSelectPopover({
   );
 }
 
+// ── Invoice select popover ───────────────────────────────────────────────────
+
+function InvoiceSelectPopover({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const { invoices } = useInvoices();
+  const { projects } = useProjects();
+  const [open, setOpen] = useState(false);
+
+  const selected = invoices.find((i) => i.id === value);
+
+  return (
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Trigger
+        className="flex h-8 w-full cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-2 text-sm text-muted-foreground hover:bg-muted"
+        onClick={() => setOpen(true)}
+      >
+        <FileText className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">
+          {selected ? `${selected.invoiceNumber} · Rp ${selected.amount.toLocaleString('id-ID')}` : 'No invoice'}
+        </span>
+        <ChevronDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+          <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
+            <div className="px-1 py-1.5 text-xs font-medium text-muted-foreground">Select Invoice</div>
+            {invoices.length === 0 ? (
+              <p className="px-2 py-2 text-xs text-muted-foreground">No invoices yet</p>
+            ) : (
+              <div className="max-h-56 overflow-y-auto">
+                <button
+                  className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
+                  onClick={() => { onChange(''); setOpen(false); }}
+                >
+                  — No invoice —
+                </button>
+                {invoices.map((inv) => {
+                  const usedBy = inv.projectId ? projects.find((p) => p.id === inv.projectId) : null;
+                  return (
+                    <button
+                      key={inv.id}
+                      className="flex w-full flex-col items-start gap-0.5 px-2 py-2 text-sm hover:bg-muted"
+                      onClick={() => { onChange(inv.id); setOpen(false); }}
+                    >
+                      <div className="flex w-full items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-mono text-xs">{inv.invoiceNumber}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          Rp {inv.amount.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                      {usedBy && (
+                        <Badge variant="secondary" className="ml-5 text-xs">
+                          Used in {usedBy.title}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </PopoverPrimitive.Popup>
+        </PopoverPrimitive.Positioner>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
+  );
+}
+
 // ── Add row (full editable) ────────────────────────────────────────────────
 
 interface ProjectAddRowProps {
@@ -486,6 +559,7 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
   const { clients } = useClients();
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
+  const [invoiceId, setInvoiceId] = useState('');
   const [priority, setPriority] = useState<ProjectPriority>('medium');
   const [progress, setProgress] = useState(0);
   const [deadline, setDeadline] = useState<Date | undefined>();
@@ -499,7 +573,7 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
     if (!title.trim()) { toast.error('Title is required'); return; }
     setSaving(true);
     try {
-      await onSave({ title: title.trim(), clientId: clientId || undefined, priority, progress, deadline, status: 'backlog' });
+      await onSave({ title: title.trim(), clientId: clientId || undefined, invoiceId: invoiceId || undefined, priority, progress, deadline, status: 'backlog' });
       toast.success('Project created');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
@@ -573,6 +647,12 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
             </PopoverPrimitive.Positioner>
           </PopoverPrimitive.Portal>
         </PopoverPrimitive.Root>
+      </TableCell>
+      <TableCell className="border-r border-border py-2 pr-2">
+        <InvoiceSelectPopover
+          value={invoiceId}
+          onChange={setInvoiceId}
+        />
       </TableCell>
       <TableCell className="py-2 pr-4">
         <div className="flex items-center gap-1">
