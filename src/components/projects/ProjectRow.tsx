@@ -1,20 +1,24 @@
 'use client';
 
-import { ArrowRight, CalendarIcon, Check, Plus, X } from 'lucide-react';
+import { ArrowRight, CalendarIcon, Check, ChevronDown, Copy, Plus, Trash2, User, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
+import { FileText } from 'lucide-react';
+import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
-import { formatIDR } from '@/lib/utils';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useProjects } from '@/hooks/useProjects';
 import type { Project, ProjectFormData, ProjectPriority } from '@/types/project';
 
 const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
@@ -41,13 +45,15 @@ interface ProjectRowProps {
   index: number;
   onSave: (data: Partial<ProjectFormData>) => Promise<void>;
   onDelete: () => void;
+  onDuplicate: () => void;
+  onAddNew: () => void;
   onNavigate: () => void;
   onAddClient: () => void;
 }
 
-type CellKey = 'title' | 'client' | 'priority' | 'budget' | 'progress' | 'deadline';
+type CellKey = 'title' | 'client' | 'priority' | 'progress' | 'deadline' | 'invoice';
 
-export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAddClient }: ProjectRowProps) {
+export function ProjectRow({ project, index, onSave, onDelete, onDuplicate, onAddNew, onNavigate, onAddClient }: ProjectRowProps) {
   const { clients } = useClients();
   const [editingCell, setEditingCell] = useState<CellKey | null>(null);
 
@@ -55,31 +61,31 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAdd
   const [editTitle, setEditTitle] = useState(project.title);
   const [editClient, setEditClient] = useState(project.clientId ?? '');
   const [editPriority, setEditPriority] = useState<ProjectPriority>(project.priority);
-  const [editBudget, setEditBudget] = useState(project.budget ? String(project.budget) : '');
   const [editProgress, setEditProgress] = useState(project.progress ?? 0);
   const [editDeadline, setEditDeadline] = useState<Date | undefined>(project.deadline?.toDate());
+  const [editInvoice, setEditInvoice] = useState(project.invoiceId ?? '');
 
   // Original values for Escape revert
   const origRef = useRef({
     title: project.title,
     clientId: project.clientId ?? '',
     priority: project.priority,
-    budget: project.budget ?? 0,
     progress: project.progress ?? 0,
     deadline: project.deadline?.toDate(),
+    invoiceId: project.invoiceId ?? '',
   });
 
   // Save one cell
-  const saveCell = async (key: CellKey) => {
+  const saveCell = async (key: CellKey, overrideValue?: Partial<ProjectFormData>) => {
     setEditingCell(null);
     try {
       const data: Partial<ProjectFormData> = {};
       if (key === 'title') data.title = editTitle.trim();
-      if (key === 'client') data.clientId = editClient || undefined;
-      if (key === 'priority') data.priority = editPriority;
-      if (key === 'budget') data.budget = editBudget ? Number(editBudget) : undefined;
+      if (key === 'client') data.clientId = (overrideValue?.clientId ?? editClient) || undefined;
+      if (key === 'priority') data.priority = (overrideValue?.priority as ProjectPriority) ?? editPriority;
       if (key === 'progress') data.progress = editProgress;
-      if (key === 'deadline') data.deadline = editDeadline;
+      if (key === 'deadline') data.deadline = overrideValue?.deadline ?? editDeadline;
+      if (key === 'invoice') data.invoiceId = (overrideValue?.invoiceId ?? editInvoice) || undefined;
       await onSave(data);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
@@ -92,9 +98,9 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAdd
     if (key === 'title') setEditTitle(origRef.current.title);
     if (key === 'client') setEditClient(origRef.current.clientId);
     if (key === 'priority') setEditPriority(origRef.current.priority);
-    if (key === 'budget') setEditBudget(origRef.current.budget ? String(origRef.current.budget) : '');
     if (key === 'progress') setEditProgress(origRef.current.progress);
     if (key === 'deadline') setEditDeadline(origRef.current.deadline);
+    if (key === 'invoice') setEditInvoice(origRef.current.invoiceId);
   };
 
   // ── Title ──────────────────────────────────────────────────────────────
@@ -113,7 +119,7 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAdd
       />
     ) : (
       <span
-        className="block cursor-pointer truncate font-medium hover:text-primary"
+        className="block cursor-pointer font-medium hover:text-primary"
         onClick={() => { setEditTitle(project.title); setEditingCell('title'); }}
       >
         {project.title}
@@ -121,90 +127,98 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAdd
     );
 
   // ── Client ────────────────────────────────────────────────────────────
-  const selectedClientName = clients.find((c) => c.id === editClient)?.name;
-  const ClientCell = () =>
-    editingCell === 'client' ? (
-      <Select
-        value={editClient}
-        onValueChange={(v) => {
-          if (v === '__add_client__') { setEditingCell(null); onAddClient(); return; }
-          setEditClient(v ?? '');
-        }}
-        onOpenChange={(open) => { if (!open && editClient !== origRef.current.clientId) saveCell('client'); }}
-      >
-        <SelectTrigger className="h-8 w-full min-w-[120px] text-sm">
-          <SelectValue placeholder="Select client" />
-        </SelectTrigger>
-        <SelectContent>
-          {clients.map((c) => (
-            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-          ))}
-          {clients.length > 0 && <div className="my-1 border-t border-border" />}
-          <button
-            type="button"
-            className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-            onPointerDown={(e) => { e.preventDefault(); setEditingCell(null); onAddClient(); }}
-          >
-            <Plus className="h-3 w-3" /> Add client
-          </button>
-        </SelectContent>
-      </Select>
-    ) : (
-      <span
-        className="block cursor-pointer truncate text-sm text-muted-foreground hover:text-foreground"
-        onClick={() => { setEditClient(project.clientId ?? ''); setEditingCell('client'); }}
-      >
-        {selectedClientName ?? '—'}
-      </span>
+  const clientDisplay = (client: typeof clients[number]) =>
+    client.company ? `${client.name} — ${client.company}` : client.name;
+
+  const displayClient = project.clientId
+    ? clients.find((c) => c.id === project.clientId)
+    : null;
+
+  const ClientCell = () => {
+    const [open, setOpen] = useState(false);
+    return (
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger
+          className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          onClick={() => setOpen(true)}
+        >
+          {displayClient ? clientDisplay(displayClient) : '—'}
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+            <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
+              <div className="px-1 py-1.5 text-xs font-medium text-muted-foreground">Select Client</div>
+              {clients.length === 0 ? (
+                <p className="px-2 py-2 text-xs text-muted-foreground">No clients yet</p>
+              ) : (
+                <div className="max-h-56 overflow-y-auto">
+                  <button
+                    className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
+                    onClick={() => { setEditClient(''); onSave({ clientId: undefined }).then(() => setOpen(false)); }}
+                  >
+                    — No client —
+                  </button>
+                  {clients.map((c) => (
+                    <button
+                      key={c.id}
+                      className="flex w-full items-center gap-2 px-2 py-2 text-sm hover:bg-muted"
+                      onClick={() => { setEditClient(c.id); onSave({ clientId: c.id }).then(() => setOpen(false)); }}
+                    >
+                      <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{clientDisplay(c)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="border-t border-border pt-1">
+                <button
+                  className="flex w-full items-center gap-2 px-2 py-2 text-sm text-primary hover:bg-muted"
+                  onClick={() => { setOpen(false); onAddClient(); }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add new client
+                </button>
+              </div>
+            </PopoverPrimitive.Popup>
+          </PopoverPrimitive.Positioner>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
     );
+  };
 
   // ── Priority ──────────────────────────────────────────────────────────
-  const PriorityCell = () =>
-    editingCell === 'priority' ? (
-      <Select
-        value={editPriority}
-        onValueChange={(v) => { setEditPriority(v as ProjectPriority); saveCell('priority'); }}
-        onOpenChange={(open) => { if (!open && editPriority !== origRef.current.priority) saveCell('priority'); }}
-      >
-        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {PRIORITY_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    ) : (
-      <Badge
-        className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}
-        onClick={() => { setEditPriority(project.priority); setEditingCell('priority'); }}
-      >
-        {PRIORITY_LABELS[project.priority]}
-      </Badge>
+  const PriorityCell = () => {
+    const [open, setOpen] = useState(false);
+    return (
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger
+          className="cursor-pointer"
+          onClick={() => setOpen(true)}
+        >
+          <Badge className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}>
+            {PRIORITY_LABELS[project.priority]}
+          </Badge>
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+            <PopoverPrimitive.Popup className="flex flex-col rounded-lg border bg-popover p-1 shadow-md">
+              {PRIORITY_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted"
+                  onClick={() => { setOpen(false); saveCell('priority', { priority: o.value as ProjectPriority }); }}
+                >
+                  <span className={`h-2 w-2 rounded-full ${PRIORITY_COLORS[o.value]?.replace('bg-', '').replace('/10', '').replace('text-', 'bg-').replace('border-', 'border-').split(' ')[0] ?? 'bg-zinc-400'}`} />
+                  {o.label}
+                </button>
+              ))}
+            </PopoverPrimitive.Popup>
+          </PopoverPrimitive.Positioner>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
     );
-
-  // ── Budget ────────────────────────────────────────────────────────────
-  const BudgetCell = () =>
-    editingCell === 'budget' ? (
-      <Input
-        autoFocus
-        value={editBudget}
-        onChange={(e) => setEditBudget(e.target.value.replace(/\D/g, ''))}
-        inputMode="numeric"
-        className="h-8 w-28 text-sm"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); saveCell('budget'); }
-          if (e.key === 'Escape') { e.preventDefault(); revertCell('budget'); }
-        }}
-        onBlur={() => saveCell('budget')}
-      />
-    ) : (
-      <span
-        className="cursor-pointer text-sm text-muted-foreground hover:text-foreground"
-        onClick={() => { setEditBudget(project.budget ? String(project.budget) : ''); setEditingCell('budget'); }}
-      >
-        {project.budget ? formatIDR(project.budget) : '—'}
-      </span>
-    );
+  };
 
   // ── Progress ───────────────────────────────────────────────────────────
   const ProgressCell = () =>
@@ -242,46 +256,138 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAdd
   // ── Deadline ────────────────────────────────────────────────────────
   const deadline = project.deadline?.toDate();
   const isOverdue = deadline && deadline < new Date() && project.status !== 'done';
-  const DeadlineCell = () =>
-    editingCell === 'deadline' ? (
-      <Popover>
-        <PopoverTrigger className="flex h-8 items-center gap-1 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-muted">
-          <CalendarIcon className="h-3 w-3" />
-          {editDeadline ? format(editDeadline, 'dd MMM') : 'Pick date'}
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={editDeadline}
-            onSelect={(d) => { setEditDeadline(d); saveCell('deadline'); }}
-            disabled={(d) => d < new Date('2020-01-01')}
-          />
-        </PopoverContent>
-      </Popover>
-    ) : (
-      <span
-        className="flex cursor-pointer items-center gap-1 text-sm hover:text-foreground"
-        onClick={() => { setEditDeadline(project.deadline?.toDate()); setEditingCell('deadline'); }}
-      >
-        {isOverdue && <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />}
-        <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
-          {deadline ? format(deadline, 'dd MMM yyyy') : '—'}
-        </span>
-      </span>
+  const DeadlineCell = () => {
+    const [open, setOpen] = useState(false);
+    return (
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger
+          className="flex cursor-pointer items-center gap-1 text-sm hover:text-foreground"
+          onClick={() => setOpen(true)}
+        >
+          {isOverdue && <span className="h-2 w-2 rounded-full bg-red-500 shrink-0" />}
+          <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
+            {deadline ? format(deadline, 'dd MMM yyyy') : '—'}
+          </span>
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+            <PopoverPrimitive.Popup className="rounded-lg border bg-popover p-2 shadow-md">
+              <Calendar
+                mode="single"
+                selected={deadline}
+                onSelect={(d) => { setOpen(false); saveCell('deadline', { deadline: d }); }}
+                disabled={(d) => d < new Date('2020-01-01')}
+              />
+            </PopoverPrimitive.Popup>
+          </PopoverPrimitive.Positioner>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
     );
+  };
+
+  // ── Invoice ─────────────────────────────────────────────────────────────────
+  const { invoices } = useInvoices();
+  const { projects } = useProjects();
+  const InvoiceCell = () => {
+    const [open, setOpen] = useState(false);
+
+    const displayInvoice = project.invoiceId
+      ? invoices.find((i) => i.id === project.invoiceId)
+      : null;
+
+    const formatAmount = (amount: number) =>
+      `Rp ${amount.toLocaleString('id-ID')}`;
+
+    return (
+      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+        <PopoverPrimitive.Trigger
+          className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          onClick={() => setOpen(true)}
+        >
+          {displayInvoice ? (
+            <>
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate max-w-[120px]">
+                {displayInvoice.invoiceNumber}
+              </span>
+            </>
+          ) : (
+            <span>—</span>
+          )}
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+        </PopoverPrimitive.Trigger>
+        <PopoverPrimitive.Portal>
+          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+            <PopoverPrimitive.Popup className="flex w-80 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
+              <div className="px-1 py-1.5 text-xs font-medium text-muted-foreground">Select Invoice</div>
+              {invoices.length === 0 ? (
+                <p className="px-2 py-2 text-xs text-muted-foreground">No invoices yet</p>
+              ) : (
+                <div className="max-h-56 overflow-y-auto">
+                  <button
+                    className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
+                    onClick={() => {
+                      setEditInvoice('');
+                      onSave({ invoiceId: undefined }).then(() => setOpen(false));
+                    }}
+                  >
+                    — No invoice —
+                  </button>
+                  {invoices.map((inv) => {
+                    const usedBy = inv.projectId ? projects.find((p) => p.id === inv.projectId) : null;
+                    const isUsedByOther = usedBy && usedBy.id !== project.id;
+                    return (
+                      <button
+                        key={inv.id}
+                        className="flex w-full flex-col items-start gap-0.5 px-2 py-2 text-sm hover:bg-muted"
+                        onClick={() => {
+                          setEditInvoice(inv.id);
+                          onSave({ invoiceId: inv.id }).then(() => setOpen(false));
+                        }}
+                      >
+                        <div className="flex w-full items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate font-mono text-xs">{inv.invoiceNumber}</span>
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {formatAmount(inv.amount)}
+                          </span>
+                        </div>
+                        {isUsedByOther && (
+                          <Badge variant="secondary" className="ml-5 text-xs">
+                            Used in {usedBy.title}
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </PopoverPrimitive.Popup>
+          </PopoverPrimitive.Positioner>
+        </PopoverPrimitive.Portal>
+      </PopoverPrimitive.Root>
+    );
+  };
 
   return (
     <TableRow
       className="border-b border-border hover:bg-accent/50"
-      onContextMenu={(e) => { e.preventDefault(); onDelete(); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        openContextMenu(e.clientX, e.clientY, [
+          { label: 'Add New Project', icon: <Plus className="h-4 w-4" />, onClick: onAddNew },
+          { label: 'Duplicate', icon: <Copy className="h-4 w-4" />, onClick: onDuplicate },
+          { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: onDelete },
+        ]);
+      }}
     >
-      <TableCell className="w-8 py-3 pl-4 pr-2 text-muted-foreground text-sm">{index}</TableCell>
-      <TableCell className="max-w-[200px] py-3 pr-2"><TitleCell /></TableCell>
-      <TableCell className="max-w-[140px] py-3 pr-2"><ClientCell /></TableCell>
-      <TableCell className="py-3 pr-2"><PriorityCell /></TableCell>
-      <TableCell className="py-3 pr-2"><BudgetCell /></TableCell>
-      <TableCell className="py-3 pr-2"><ProgressCell /></TableCell>
-      <TableCell className="py-3 pr-2"><DeadlineCell /></TableCell>
+      <TableCell className="w-8 border-r border-border py-3 pl-4 pr-2 text-muted-foreground text-sm">{index}</TableCell>
+      <TableCell className="w-fit border-r border-border py-3 pr-2"><TitleCell /></TableCell>
+      <TableCell className="w-fit border-r border-border py-3 pr-2"><ClientCell /></TableCell>
+      <TableCell className="w-fit border-r border-border py-3 pr-2"><PriorityCell /></TableCell>
+      <TableCell className="border-r border-border py-3 pr-2"><ProgressCell /></TableCell>
+      <TableCell className="border-r border-border py-3 pr-2"><DeadlineCell /></TableCell>
+      <TableCell className="border-r border-border py-3 pr-2"><InvoiceCell /></TableCell>
       <TableCell className="py-3 pr-4">
         <Button
           variant="ghost"
@@ -293,6 +399,77 @@ export function ProjectRow({ project, index, onSave, onDelete, onNavigate, onAdd
         </Button>
       </TableCell>
     </TableRow>
+  );
+}
+
+// ── Client select popover ───────────────────────────────────────────────────
+
+function ClientSelectPopover({
+  clientId,
+  onChange,
+  onAddClient,
+}: {
+  clientId: string;
+  onChange: (id: string) => void;
+  onAddClient: () => void;
+}) {
+  const { clients } = useClients();
+  const [open, setOpen] = useState(false);
+
+  const clientDisplay = (client: typeof clients[number]) =>
+    client.company ? `${client.name} — ${client.company}` : client.name;
+
+  const selected = clients.find((c) => c.id === clientId);
+
+  return (
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Trigger
+        className="flex h-8 w-full cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-2 text-sm text-muted-foreground hover:bg-muted"
+        onClick={() => setOpen(true)}
+      >
+        <User className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{selected ? clientDisplay(selected) : 'Select client'}</span>
+        <ChevronDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+      </PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+          <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
+            <div className="px-1 py-1.5 text-xs font-medium text-muted-foreground">Select Client</div>
+            {clients.length === 0 ? (
+              <p className="px-2 py-2 text-xs text-muted-foreground">No clients yet</p>
+            ) : (
+              <div className="max-h-56 overflow-y-auto">
+                <button
+                  className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
+                  onClick={() => { onChange(''); setOpen(false); }}
+                >
+                  — No client —
+                </button>
+                {clients.map((c) => (
+                  <button
+                    key={c.id}
+                    className="flex w-full items-center gap-2 px-2 py-2 text-sm hover:bg-muted"
+                    onClick={() => { onChange(c.id); setOpen(false); }}
+                  >
+                    <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{clientDisplay(c)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="border-t border-border pt-1">
+              <button
+                className="flex w-full items-center gap-2 px-2 py-2 text-sm text-primary hover:bg-muted"
+                onClick={() => { setOpen(false); onAddClient(); }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add new client
+              </button>
+            </div>
+          </PopoverPrimitive.Popup>
+        </PopoverPrimitive.Positioner>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }
 
@@ -310,7 +487,6 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
   const [priority, setPriority] = useState<ProjectPriority>('medium');
-  const [budget, setBudget] = useState('');
   const [progress, setProgress] = useState(0);
   const [deadline, setDeadline] = useState<Date | undefined>();
   const [saving, setSaving] = useState(false);
@@ -323,7 +499,7 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
     if (!title.trim()) { toast.error('Title is required'); return; }
     setSaving(true);
     try {
-      await onSave({ title: title.trim(), clientId: clientId || undefined, priority, budget: budget ? Number(budget) : undefined, progress, deadline, status: 'backlog' });
+      await onSave({ title: title.trim(), clientId: clientId || undefined, priority, progress, deadline, status: 'backlog' });
       toast.success('Project created');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save');
@@ -332,8 +508,8 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
 
   return (
     <TableRow className="bg-muted/20 border-b border-border">
-      <TableCell className="w-8 py-2 pl-4 pr-2 text-muted-foreground text-sm">+</TableCell>
-      <TableCell className="py-2 pr-2">
+      <TableCell className="w-8 border-r border-border py-2 pl-4 pr-2 text-muted-foreground text-sm">+</TableCell>
+      <TableCell className="border-r border-border py-2 pr-2">
         <Input
           ref={titleRef}
           value={title}
@@ -346,31 +522,14 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
           }}
         />
       </TableCell>
-      <TableCell className="py-2 pr-2">
-        <Select
-          value={clientId}
-          onValueChange={(v) => {
-            if (v === '__add_client__') { onAddClient(); return; }
-            setClientId(v ?? '');
-          }}
-        >
-          <SelectTrigger className="h-8 w-full min-w-[120px] text-sm"><SelectValue placeholder="Select client" /></SelectTrigger>
-          <SelectContent>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-            {clients.length > 0 && <div className="my-1 border-t border-border" />}
-            <button
-              type="button"
-              className="flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-              onPointerDown={(e) => { e.preventDefault(); onAddClient(); }}
-            >
-              <Plus className="h-3 w-3" /> Add client
-            </button>
-          </SelectContent>
-        </Select>
+      <TableCell className="border-r border-border py-2 pr-2">
+        <ClientSelectPopover
+          clientId={clientId}
+          onChange={(id) => setClientId(id)}
+          onAddClient={onAddClient}
+        />
       </TableCell>
-      <TableCell className="py-2 pr-2">
+      <TableCell className="border-r border-border py-2 pr-2">
         <Select value={priority} onValueChange={(v) => setPriority(v as ProjectPriority)}>
           <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -380,17 +539,7 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell className="py-2 pr-2">
-        <Input
-          value={budget}
-          onChange={(e) => setBudget(e.target.value.replace(/\D/g, ''))}
-          inputMode="numeric"
-          className="h-8 w-28 text-sm"
-          placeholder="0"
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
-        />
-      </TableCell>
-      <TableCell className="py-2 pr-2">
+      <TableCell className="border-r border-border py-2 pr-2">
         <Input
           value={String(progress)}
           onChange={(e) => {
@@ -402,21 +551,28 @@ export function ProjectAddRow({ onSave, onCancel, pendingClientId, onAddClient }
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel(); }}
         />
       </TableCell>
-      <TableCell className="py-2 pr-2">
-        <Popover>
-          <PopoverTrigger className="flex h-8 w-full items-center gap-1 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-muted">
+      <TableCell className="border-r border-border py-2 pr-2">
+        <PopoverPrimitive.Root>
+          <PopoverPrimitive.Trigger
+            className="flex h-8 w-full cursor-pointer items-center gap-1 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground hover:bg-muted"
+            onClick={() => {}}
+          >
             <CalendarIcon className="h-3 w-3 shrink-0" />
             {deadline ? format(deadline, 'dd MMM yyyy') : 'Pick date'}
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={deadline}
-              onSelect={(d) => setDeadline(d)}
-              disabled={(d) => d < new Date('2020-01-01')}
-            />
-          </PopoverContent>
-        </Popover>
+          </PopoverPrimitive.Trigger>
+          <PopoverPrimitive.Portal>
+            <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
+              <PopoverPrimitive.Popup className="rounded-lg border bg-popover p-2 shadow-md">
+                <Calendar
+                  mode="single"
+                  selected={deadline}
+                  onSelect={(d) => setDeadline(d)}
+                  disabled={(d) => d < new Date('2020-01-01')}
+                />
+              </PopoverPrimitive.Popup>
+            </PopoverPrimitive.Positioner>
+          </PopoverPrimitive.Portal>
+        </PopoverPrimitive.Root>
       </TableCell>
       <TableCell className="py-2 pr-4">
         <div className="flex items-center gap-1">
