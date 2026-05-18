@@ -44,7 +44,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 interface ProjectRowProps {
   project: Project;
   index: number;
-  onSave: (data: Partial<ProjectFormData>) => Promise<void>;
+  onSave: (data: Partial<ProjectFormData> & { projectId?: string | null }) => Promise<void>;
   onDelete: () => void;
   onDuplicate: () => void;
   onAddNew: () => void;

@@ -9,7 +9,7 @@ export interface Project {
   title: string;
   description?: string;
   clientId?: string;
-  invoiceId?: string; // linked invoice
+  invoiceId?: string | null; // linked invoice
   status: ProjectStatus;
   priority: ProjectPriority;
   progress: number; // 0-100
@@ -23,7 +23,7 @@ export interface ProjectFormData {
   title: string;
   description?: string;
   clientId?: string;
-  invoiceId?: string; // linked invoice
+  invoiceId?: string | null; // linked invoice
   status: ProjectStatus;
   priority: ProjectPriority;
   deadline?: Date;

@@ -30,10 +30,11 @@ export interface InvoiceItem {
 export interface InvoiceFormData {
   clientId: string;
   title?: string;
-  projectId?: string;
+  projectId?: string | null;
   amount: number;
   tax?: number;
   discount?: number;
+  status?: InvoiceStatus;
   dueDate: Date;
   notes?: string;
   items?: InvoiceItem[];
