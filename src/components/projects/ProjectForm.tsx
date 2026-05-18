@@ -41,6 +41,7 @@ import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
 import { cn } from '@/lib/utils';
+import { updateInvoice } from '@/lib/services/invoiceService';
 import {
   type Project,
   type ProjectFormData,
@@ -291,8 +292,32 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
                   <CommandInput placeholder="Search invoices..." autoFocus />
                   <CommandList>
                     <CommandEmpty>
-                      {invoices.length === 0 ? 'No invoices yet.' : 'No invoice found.'}
+                      <div className="py-1">
+                        {invoices.length === 0 ? 'No invoices yet.' : 'No invoice found.'}
+                      </div>
                     </CommandEmpty>
+                    {invoiceId && (
+
+                      <div className="px-2 py-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-muted-foreground text-xs"
+                          onClick={async () => {
+                            if (invoiceId) {
+                              const prev = invoices.find(i => i.id === invoiceId);
+                              if (prev?.projectId === initialData?.id) {
+                                updateInvoice(invoiceId, { projectId: null }).catch(() => {});
+                              }
+                            }
+                            setInvoiceId('');
+                            setInvoicePopoverOpen(false);
+                          }}
+                        >
+                          Clear linked invoice
+                        </Button>
+                      </div>
+                    )}
                     <CommandGroup>
                       {invoices.map((inv) => {
                         const usedByProject = inv.projectId ? projects.find((p) => p.id === inv.projectId) : null;
@@ -301,9 +326,20 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
                           <CommandItem
                             key={inv.id}
                             value={inv.id}
-                            onSelect={() => {
+                            onSelect={async () => {
+                              // Clear previous invoice's projectId if linked to this project
+                              if (invoiceId && invoiceId !== inv.id) {
+                                const prev = invoices.find(i => i.id === invoiceId);
+                                if (prev?.projectId === initialData?.id) {
+                                  await updateInvoice(invoiceId, { projectId: null });
+                                }
+                              }
+                              // Set new invoice and link it to this project
                               setInvoiceId(inv.id);
                               setInvoicePopoverOpen(false);
+                              if (initialData?.id) {
+                                await updateInvoice(inv.id, { projectId: initialData.id });
+                              }
                             }}
                             className="flex flex-col items-start gap-0.5 py-2"
                           >
@@ -421,6 +457,7 @@ export function ProjectForm({ open, onOpenChange, onSubmit, initialData }: Proje
               setInvoicePopoverOpen(false);
             }}
             initialClientId={clientId || undefined}
+            initialProjectId={initialData?.id}
           />
         </form>
       </DialogContent>

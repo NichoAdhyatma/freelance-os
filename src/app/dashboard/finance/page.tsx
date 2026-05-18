@@ -1,41 +1,27 @@
 'use client';
 
-import { format } from 'date-fns';
-import { id } from 'date-fns/locale';
 import {
-  AlertTriangle,
-  CheckCircle,
-  MoreHorizontal,
-  Plus,
+  Copy,
   Receipt,
-  Send,
-  Trash2,
 } from 'lucide-react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
-import { openContextMenu } from '@/components/shared/RowContextMenu';
+import { setDashboardTitle } from '@/app/dashboard/_context';
+import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCardGrid, SummaryCard } from '@/components/dashboard/SummaryCard';
+import { SummaryCard,SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
+import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
+import { InvoiceRow } from '@/components/invoices/InvoiceRow';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Badge } from '@/components/ui/badge';
+import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -45,32 +31,23 @@ import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
-import { setDashboardTitle } from '@/app/dashboard/_context';
 import { formatIDR } from '@/lib/utils';
-import { type InvoiceStatus } from '@/types/invoice';
 
 type StatusFilter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
 type SortField = 'recent' | 'amount' | 'due' | null;
 type SortDir = 'asc' | 'desc' | null;
 const PAGE_SIZE = 10;
 
-const STATUS_CONFIG: Record<InvoiceStatus, { label: string; color: string }> = {
-  draft: { label: 'Draft', color: 'bg-muted text-muted-foreground' },
-  pending: { label: 'Pending', color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
-  sent: { label: 'Sent', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  paid: { label: 'Paid', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  overdue: { label: 'Overdue', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
-  cancelled: { label: 'Cancelled', color: 'bg-muted text-muted-foreground' },
-};
-
 export default function FinancePage() {
   setDashboardTitle('Finance');
 
+  const router = useRouter();
   const { invoices, loading, add, edit, remove } = useInvoices();
-  const { getClientById } = useClients();
+  const { clients } = useClients();
   const { projects } = useProjects();
 
   const [addingRow, setAddingRow] = useState(false);
+  const [addingClientInline, setAddingClientInline] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sortField, setSortField] = useState<SortField>('recent');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -146,8 +123,6 @@ export default function FinancePage() {
   const end = Math.min(currentPage * PAGE_SIZE, filtered.length);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleOpenNew = () => setAddingRow(true);
-
   const handleCancelAdd = () => setAddingRow(false);
 
   const handleDelete = async (id: string) => {
@@ -160,21 +135,20 @@ export default function FinancePage() {
     }
   };
 
-  const handleSend = async (id: string) => {
+  const handleDuplicate = async (invoice: typeof invoices[number]) => {
     try {
-      await edit(id, { status: 'sent' });
-      toast.success('Invoice marked as sent');
+      await add({
+        clientId: invoice.clientId,
+        projectId: invoice.projectId || undefined,
+        title: invoice.title,
+        amount: invoice.amount,
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        items: invoice.items,
+        notes: invoice.notes || undefined,
+      });
+      toast.success('Invoice duplicated');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to send');
-    }
-  };
-
-  const handleMarkPaid = async (id: string) => {
-    try {
-      await edit(id, { status: 'paid' });
-      toast.success('Invoice marked as paid');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to mark paid');
+      toast.error(err instanceof Error ? err.message : 'Failed to duplicate');
     }
   };
 
@@ -195,14 +169,6 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-end">
-        <Button onClick={handleOpenNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Invoice
-        </Button>
-      </div>
-
       {/* Summary Stats */}
       <SummaryCardGrid>
         <SummaryCard
@@ -263,7 +229,7 @@ export default function FinancePage() {
       </Tabs>
 
       {/* Table */}
-      {paginated.length === 0 ? (
+      {paginated.length === 0 && !addingRow ? (
         <EmptyState
           variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No invoices found' : 'No invoices yet'}
@@ -273,29 +239,24 @@ export default function FinancePage() {
               : 'Create your first invoice to start tracking payments'
           }
           actionLabel={search ? 'Reset Filter' : 'Create Invoice'}
-          onAction={search ? () => { setSearch(''); setPage(1); } : handleOpenNew}
+          onAction={search ? () => { setSearch(''); setPage(1); } : () => { setAddingRow(true); }}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 text-xs font-medium">#</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">
-                  Invoice #
-                </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Client</TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Project</TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-border w-12 border-r text-xs font-medium">#</TableHead>
+                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Invoice #</TableHead>
+                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Client</TableHead>
+                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Project</TableHead>
+                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium select-none">
                   Amount <SortIcon field="amount" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium select-none">
                   Due Date <SortIcon field="due" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="text-muted-foreground text-xs font-medium">Status</TableHead>
-                <TableHead className="text-muted-foreground w-20 text-xs font-medium">
-                  Actions
-                </TableHead>
+                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -306,91 +267,32 @@ export default function FinancePage() {
                   onCancel={handleCancelAdd}
                 />
               )}
-              {paginated.map((inv, idx) => {
-                const status = inv.status as InvoiceStatus;
-                const config = STATUS_CONFIG[status];
-                const dueDate = inv.dueDate.toDate();
-                const isOverdue =
-                  dueDate < new Date() && status !== 'paid' && status !== 'cancelled';
-                const project = inv.projectId ? projects.find((p) => p.id === inv.projectId) : null;
-
-                return (
-                  <TableRow key={inv.id} className="border-border hover:bg-accent/50" onContextMenu={(e) => openContextMenu(e.clientX, e.clientY, [{ label: "Edit Invoice", icon: <Pencil className="h-4 w-4" />, onClick: () => handleEdit(inv) }, { label: "Hapus Invoice", icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: () => handleDelete(inv.id) }])}>
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {start + idx}
-                    </TableCell>
-                    <TableCell className="font-mono text-muted-foreground py-3 text-sm">
-                      {inv.invoiceNumber}
-                    </TableCell>
-                    <TableCell className="max-w-[160px] py-3">
-                      {inv.clientId ? (
-                        <Link
-                          href={`/dashboard/clients/${inv.clientId}`}
-                          className="block truncate text-sm font-medium hover:underline"
-                        >
-                          {getClientById(inv.clientId)?.name ?? inv.clientId}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[140px] py-3 text-sm">
-                      <span className="truncate">{project?.title || '—'}</span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {formatIDR(inv.amount)}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <span
-                        className={`flex items-center gap-1 text-sm ${isOverdue ? 'text-red-400' : 'text-muted-foreground'}`}
-                      >
-                        {isOverdue && <AlertTriangle className="h-3 w-3 shrink-0" />}
-                        {format(dueDate, 'dd MMM yyyy', { locale: id })}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <Badge className={config.color} variant="outline">
-                        {config.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger className="bg-background hover:bg-accent flex h-7 w-7 items-center justify-center rounded-md border">
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {status === 'draft' && (
-                              <DropdownMenuItem onClick={() => handleSend(inv.id)}>
-                                <Send className="mr-2 h-4 w-4" />
-                                Send Invoice
-                              </DropdownMenuItem>
-                            )}
-                            {(status === 'sent' ||
-                              status === 'overdue' ||
-                              status === 'pending') && (
-                              <DropdownMenuItem onClick={() => handleMarkPaid(inv.id)}>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Mark as Paid
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => handleDelete(inv.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {paginated.map((inv, idx) => (
+                <InvoiceRow
+                  key={inv.id}
+                  invoice={inv}
+                  index={start + idx}
+                  clients={clients}
+                  projectTitle={inv.projectId ? projects.find((p) => p.id === inv.projectId)?.title : undefined}
+                  onSave={async (id, data) => { await edit(id, data); }}
+                  onDelete={() => handleDelete(inv.id)}
+                  onDuplicate={() => handleDuplicate(inv)}
+                  onAddNew={() => { setPage(1); setAddingRow(true); }}
+                  onAddClient={() => setAddingClientInline(true)}
+                  onNavigate={() => {}}
+                />
+              ))}
             </TableBody>
           </Table>
+
+          {/* Inline add client popup for table rows */}
+          <InlineAddClientCard
+            open={addingClientInline}
+            onClose={() => setAddingClientInline(false)}
+            onCreated={(clientId) => {
+              setAddingClientInline(false);
+            }}
+          />
 
           {/* Pagination */}
           {totalPages > 1 && (

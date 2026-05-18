@@ -1,28 +1,28 @@
 'use client';
 
-import { FolderKanban, Plus } from 'lucide-react';
+import { Copy, FolderKanban, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { openContextMenu } from '@/components/shared/RowContextMenu';
+import { setDashboardTitle } from '@/app/dashboard/_context';
 import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
+import { SortIcon } from '@/components/dashboard/SortIcon';
+import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
+import { ProjectAddRow,ProjectRow } from '@/components/projects/ProjectRow';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { EmptyState } from '@/components/shared/EmptyState';
-import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
-import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
-import { ProjectRow, ProjectAddRow } from '@/components/projects/ProjectRow';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useProjects } from '@/hooks/useProjects';
-import { setDashboardTitle } from '@/app/dashboard/_context';
 import { type ProjectFormData } from '@/types/project';
 
-type SortField = 'recent' | 'title' | 'priority' | 'budget' | 'deadline' | null;
+type SortField = 'recent' | 'title' | 'priority' | 'deadline' | null;
 type SortDir = 'asc' | 'desc' | null;
 
 const PAGE_SIZE = 10;
@@ -96,10 +96,6 @@ export default function ProjectsPage() {
       sorted.sort((a, b) =>
         sortDir === 'asc' ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title),
       );
-    } else if (sortField === 'budget') {
-      sorted.sort((a, b) =>
-        sortDir === 'asc' ? (a.budget || 0) - (b.budget || 0) : (b.budget || 0) - (a.budget || 0),
-      );
     } else if (sortField === 'deadline') {
       sorted.sort((a, b) => {
         if (!a.deadline && !b.deadline) return 0;
@@ -138,6 +134,21 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleDuplicate = async (project: typeof projects[number]) => {
+    try {
+      const { title, clientId, priority, status } = project;
+      await addProject({
+        title: `${title} (Copy)`,
+        clientId: clientId || undefined,
+        priority: priority || 'medium',
+        status: 'backlog',
+      });
+      toast.success('Project duplicated');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to duplicate project');
+    }
+  };
+
   const handleSubmitInline = async (data: ProjectFormData) => {
     try {
       await addProject(data);
@@ -159,13 +170,6 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-end">
-        <Button onClick={handleOpenNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Project
-        </Button>
-      </div>
 
       {/* Summary Stats */}
       <SummaryCardGrid>
@@ -208,32 +212,6 @@ export default function ProjectsPage() {
         placeholder="Search projects or clients..."
       />
 
-      {/* Inline add row */}
-      {addingRow && (
-        <>
-          <div className="overflow-hidden rounded-lg border">
-            <table className="w-full">
-              <tbody>
-                <ProjectAddRow
-                  onSave={handleSubmitInline}
-                  onCancel={handleCancelAdd}
-                  pendingClientId={pendingClientId}
-                  onAddClient={() => setAddingClientInline(true)}
-                />
-              </tbody>
-            </table>
-          </div>
-          <InlineAddClientCard
-            open={addingClientInline}
-            onClose={() => setAddingClientInline(false)}
-            onCreated={(clientId) => {
-              setPendingClientId(clientId);
-              setAddingClientInline(false);
-            }}
-          />
-        </>
-      )}
-
       {/* Table or Empty State */}
       {paginated.length === 0 && !addingRow ? (
         <EmptyState
@@ -245,36 +223,29 @@ export default function ProjectsPage() {
               : 'Create your first project to start tracking work'
           }
           actionLabel={search ? 'Reset Filter' : 'Create Project'}
-          onAction={search ? () => { setSearch(''); setPage(1); } : handleOpenNew}
+          onAction={search ? () => { setSearch(''); setPage(1); } : () => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground w-12 select-none border-r border-border text-xs font-medium">
                   #
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('title')}>
                     Title <SortIcon field="title" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
                   Client
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
                   Priority
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
-                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('budget')}>
-                    Budget <SortIcon field="budget" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
-                  </span>
-                </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
-                  Progress
-                </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">Progress</TableHead>
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('deadline')}>
                     Deadline <SortIcon field="deadline" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
@@ -285,19 +256,40 @@ export default function ProjectsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {addingRow && (
+                <ProjectAddRow
+                  key="__add__"
+                  onSave={handleSubmitInline}
+                  onCancel={handleCancelAdd}
+                  pendingClientId={pendingClientId}
+                  onAddClient={() => setAddingClientInline(true)}
+                />
+              )}
               {paginated.map((project, idx) => (
                 <ProjectRow
                   key={project.id}
                   project={project}
-                  index={start + idx - 1}
+                  index={start + idx}
                   onSave={(data) => handleCellSave(project.id, data)}
                   onDelete={() => handleDelete(project.id)}
+                  onDuplicate={() => handleDuplicate(project)}
+                  onAddNew={() => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
                   onNavigate={() => router.push(`/dashboard/projects/${project.id}`)}
                   onAddClient={() => setAddingClientInline(true)}
                 />
               ))}
             </TableBody>
           </Table>
+
+          {/* Inline add client popup for table rows */}
+          <InlineAddClientCard
+            open={addingClientInline}
+            onClose={() => setAddingClientInline(false)}
+            onCreated={(clientId) => {
+              setPendingClientId(clientId);
+              setAddingClientInline(false);
+            }}
+          />
 
           {/* Pagination */}
           {totalPages > 1 && (

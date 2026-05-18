@@ -44,11 +44,9 @@ export function ClientInlineRow({ mode, initialData, onSave, onCancel }: ClientI
   return (
     <tr className="bg-muted/20 border-b border-border">
       {/* # */}
-      <td className="py-2 pl-4 pr-2">
-        <span className="text-muted-foreground text-sm">{mode === 'add' ? '+' : '✏️'}</span>
-      </td>
+      <td className="w-8 border-r border-border py-2 pl-4 pr-2 text-muted-foreground text-sm">{mode === 'add' ? '+' : '✏️'}</td>
       {/* Name */}
-      <td className="py-2 pr-2">
+      <td className="border-r border-border py-2 pr-2">
         <Input
           autoFocus
           value={name}
@@ -62,7 +60,7 @@ export function ClientInlineRow({ mode, initialData, onSave, onCancel }: ClientI
         />
       </td>
       {/* Company */}
-      <td className="py-2 pr-2">
+      <td className="border-r border-border py-2 pr-2">
         <Input
           value={company}
           onChange={(e) => setCompany(e.target.value)}
@@ -71,7 +69,7 @@ export function ClientInlineRow({ mode, initialData, onSave, onCancel }: ClientI
         />
       </td>
       {/* Contact */}
-      <td className="py-2 pr-2">
+      <td className="border-r border-border py-2 pr-2">
         <Input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -81,11 +79,11 @@ export function ClientInlineRow({ mode, initialData, onSave, onCancel }: ClientI
         />
       </td>
       {/* Projects */}
-      <td className="py-2 pr-2">
+      <td className="border-r border-border py-2 pr-2">
         <span className="text-muted-foreground text-xs">—</span>
       </td>
       {/* Revenue */}
-      <td className="py-2 pr-2">
+      <td className="py-2 pr-4">
         <span className="text-muted-foreground text-xs">—</span>
       </td>
       {/* Actions */}

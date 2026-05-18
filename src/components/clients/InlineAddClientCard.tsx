@@ -73,12 +73,12 @@ export function InlineAddClientCard({ open, onClose, onCreated }: InlineAddClien
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
+        className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-[1px]"
         onClick={onClose}
       />
 
       {/* Card — centered */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center">
         <div
           className="relative w-80 overflow-hidden rounded-xl border border-border bg-popover shadow-2xl"
           style={{

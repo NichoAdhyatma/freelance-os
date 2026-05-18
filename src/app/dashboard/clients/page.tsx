@@ -1,22 +1,24 @@
 'use client';
 
-import { Mail, Plus, Trash2, Users } from 'lucide-react';
-import Link from 'next/link';
+import { Users } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
+import { setDashboardTitle } from '@/app/dashboard/_context';
 import { ClientInlineRow } from '@/components/clients/ClientInlineRow';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { ClientRow } from '@/components/clients/ClientRow';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -25,18 +27,17 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useProjects } from '@/hooks/useProjects';
-import { setDashboardTitle } from '@/app/dashboard/_context';
-import { formatIDR } from '@/lib/utils';
 import { type ClientFormData } from '@/types/client';
 
-type SortField = 'recent' | 'name' | 'revenue' | null;
+type SortField = 'recent' | 'name' | null;
 type SortDir = 'asc' | 'desc' | null;
 const PAGE_SIZE = 10;
 
 export default function ClientsPage() {
   setDashboardTitle('Clients');
 
-  const { clients, loading, addClient, removeClient, total, totalRevenue } =
+  const router = useRouter();
+  const { clients, loading, addClient, editClient, removeClient, total } =
     useClients();
   const { projects } = useProjects();
 
@@ -61,9 +62,8 @@ export default function ClientsPage() {
   // Stats
   const stats = useMemo(() => {
     const activeClients = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
-    const avgRevenue = total > 0 ? Math.round(totalRevenue / total) : 0;
-    return { total, totalRevenue, activeClients, avgRevenue };
-  }, [clients, total, totalRevenue, clientProjectCount]);
+    return { total, activeClients };
+  }, [clients, total, clientProjectCount]);
 
   // Sort handler — cycles: asc → desc → clear
   const handleSort = (field: string) => {
@@ -103,12 +103,6 @@ export default function ClientsPage() {
       sorted.sort((a, b) =>
         sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
       );
-    } else if (sortField === 'revenue') {
-      sorted.sort((a, b) =>
-        sortDir === 'asc'
-          ? (a.totalRevenue || 0) - (b.totalRevenue || 0)
-          : (b.totalRevenue || 0) - (a.totalRevenue || 0),
-      );
     }
     return sorted;
   }, [clients, debouncedSearch, filter, sortField, sortDir, clientProjectCount]);
@@ -120,8 +114,6 @@ export default function ClientsPage() {
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const hasProjectsCount = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
-
-  const handleOpenNew = () => setAddingRow(true);
 
   const handleCancelAdd = () => setAddingRow(false);
 
@@ -137,6 +129,21 @@ export default function ClientsPage() {
       toast.success('Client deleted');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete client');
+    }
+  };
+
+  const handleDuplicate = async (client: typeof clients[number]) => {
+    try {
+      await addClient({
+        name: `${client.name} (Copy)`,
+        email: client.email || undefined,
+        whatsapp: client.whatsapp || undefined,
+        company: client.company || undefined,
+        notes: client.notes || undefined,
+      });
+      toast.success('Client duplicated');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to duplicate client');
     }
   };
 
@@ -157,14 +164,6 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-end">
-        <Button onClick={handleOpenNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Client
-        </Button>
-      </div>
-
       {/* Summary Stats */}
       <SummaryCardGrid>
         <SummaryCard
@@ -181,16 +180,16 @@ export default function ClientsPage() {
           icon={<Users className="h-6 w-6" />}
         />
         <SummaryCard
-          label="Total Revenue"
-          value={formatIDR(stats.totalRevenue)}
-          sub="Combined"
+          label="Total Invoices"
+          value="—"
+          sub="Via finance page"
           subColor="default"
           icon={<Users className="h-6 w-6" />}
         />
         <SummaryCard
-          label="Avg Revenue"
-          value={formatIDR(stats.avgRevenue)}
-          sub="Per client"
+          label="Total Projects"
+          value={projects.length}
+          sub="Across all clients"
           subColor="default"
           icon={<Users className="h-6 w-6" />}
         />
@@ -221,7 +220,7 @@ export default function ClientsPage() {
       </Tabs>
 
       {/* Table */}
-      {paginated.length === 0 ? (
+      {paginated.length === 0 && !addingRow ? (
         <EmptyState
           variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No clients found' : 'No clients yet'}
@@ -231,17 +230,17 @@ export default function ClientsPage() {
               : 'Add your first client to start managing relationships'
           }
           actionLabel={search ? 'Reset Filter' : 'Add Client'}
-          onAction={search ? () => { setSearch(''); setPage(1); } : handleOpenNew}
+          onAction={search ? () => { setSearch(''); setPage(1); } : () => { setAddingRow(true); }}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground w-12 border-r border-border select-none text-xs font-medium">
                   #
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
                   <span
                     className="flex cursor-pointer items-center"
                     onClick={() => handleSort('name')}
@@ -255,29 +254,12 @@ export default function ClientsPage() {
                     />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">Company</TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">Contact</TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">Company</TableHead>
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">Contact</TableHead>
+                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
                   Projects
                 </TableHead>
-                <TableHead className="text-muted-foreground select-none text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center"
-                    onClick={() => handleSort('revenue')}
-                  >
-                    Revenue{' '}
-                    <SortIcon
-                      field="revenue"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </span>
-                </TableHead>
-                <TableHead className="text-muted-foreground w-20 select-none text-xs font-medium">
-                  Actions
-                </TableHead>
-              </TableRow>
+                </TableRow>
             </TableHeader>
             <TableBody>
               {addingRow && (
@@ -287,77 +269,19 @@ export default function ClientsPage() {
                   onCancel={handleCancelAdd}
                 />
               )}
-              {paginated.map((client, idx) => {
-                const projectCount = clientProjectCount[client.id] || 0;
-                return (
-                  <TableRow key={client.id} className="border-border hover:bg-accent/50">
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {start + idx}
-                    </TableCell>
-                    <TableCell className="max-w-[200px] py-3">
-                      <Link
-                        href={`/dashboard/clients/${client.id}`}
-                        className="block truncate font-medium hover:underline"
-                      >
-                        {client.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[140px] py-3 text-sm">
-                      <span className="truncate">{client.company || '—'}</span>
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-2">
-                        {client.email && (
-                          <a
-                            href={`mailto:${client.email}`}
-                            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
-                          >
-                            <Mail className="h-3 w-3" />
-                            <span className="max-w-[120px] truncate">{client.email}</span>
-                          </a>
-                        )}
-                        {client.whatsapp && (
-                          <a
-                            href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground flex items-center text-xs hover:text-green-500"
-                          >
-                            <span className="text-[10px]">WA</span>
-                          </a>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {projectCount > 0 ? (
-                        <Link
-                          href={`/dashboard/clients/${client.id}`}
-                          className="text-primary hover:underline"
-                        >
-                          {projectCount}
-                        </Link>
-                      ) : (
-                        <span className="text-muted-foreground">0</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground py-3 text-sm">
-                      {client.totalRevenue ? formatIDR(client.totalRevenue) : '—'}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive h-7 w-7"
-                          onClick={() => handleDelete(client.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {paginated.map((client, idx) => (
+                <ClientRow
+                  key={client.id}
+                  client={client}
+                  index={start + idx}
+                  projectCount={clientProjectCount[client.id] || 0}
+                  onSave={async (id, data) => { await editClient(id, data); }}
+                  onDelete={() => handleDelete(client.id)}
+                  onDuplicate={() => handleDuplicate(client)}
+                  onAddNew={() => { setPage(1); setAddingRow(true); }}
+                  onNavigate={() => router.push(`/dashboard/clients/${client.id}`)}
+                />
+              ))}
             </TableBody>
           </Table>
 
