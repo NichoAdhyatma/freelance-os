@@ -14,6 +14,7 @@ export interface Project {
   priority: ProjectPriority;
   progress: number; // 0-100
   deadline?: Timestamp;
+  budget?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -26,5 +27,6 @@ export interface ProjectFormData {
   status: ProjectStatus;
   priority: ProjectPriority;
   deadline?: Date;
+  budget?: number;
   progress?: number;
 }
