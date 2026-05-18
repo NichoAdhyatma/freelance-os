@@ -6,6 +6,7 @@ export interface Invoice {
   id: string;
   invoiceNumber: string;
   clientId: string;
+  title?: string;
   projectId?: string;
   amount: number;
   tax?: number;
@@ -28,6 +29,7 @@ export interface InvoiceItem {
 
 export interface InvoiceFormData {
   clientId: string;
+  title?: string;
   projectId?: string;
   amount: number;
   tax?: number;
