@@ -2,12 +2,11 @@
 
 import { ArrowLeft, Download, Edit, Share2, Trash2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-import { InvoicePDFTemplate } from '@/components/invoices/InvoicePDFTemplate';
+import { buildInvoiceHTML } from '@/components/invoices/InvoicePDFTemplate';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import { useClients } from '@/hooks/useClients';
@@ -24,11 +23,6 @@ const STATUS_COLORS: Record<string, string> = {
   draft: '#6b7280', overdue: '#dc2626', cancelled: '#9ca3af',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  paid: 'Lunas', sent: 'Terkirim', pending: 'Menunggu',
-  draft: 'Draft', overdue: 'Jatuh Tempo', cancelled: 'Batal',
-};
-
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -37,6 +31,7 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { clients } = useClients();
   const { projects } = useProjects();
@@ -57,9 +52,28 @@ export default function InvoiceDetailPage() {
     if (!invoice) return;
     setDownloading(true);
     try {
-      const element = document.getElementById('invoice-pdf-template');
-      if (!element) { toast.error('Template not found'); return; }
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false, backgroundColor: '#fafaf9' });
+      // Build pure HTML invoice
+      const html = buildInvoiceHTML({ invoice, client: client ?? null, projectTitle: project?.title });
+
+      // Render into iframe, wait for fonts/resources
+      const iframe = iframeRef.current as HTMLIFrameElement & { contentWindow: Window };
+      if (!iframe) { toast.error('Iframe not found'); return; }
+
+      iframe.srcdoc = html;
+      await new Promise((res) => setTimeout(res, 600));
+
+      const win = iframe.contentWindow;
+      const iframeDoc = win.document;
+      const body = iframeDoc.body;
+
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(body, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#fafaf9',
+      });
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -85,36 +99,13 @@ export default function InvoiceDetailPage() {
   };
 
   const handleSendWhatsApp = async () => {
-    if (!invoice || !client) {
-      toast.error('Client tidak ditemukan. Pastikan invoice sudah punya client.');
-      return;
-    }
-    if (!client.whatsapp) {
-      toast.error('Client ini belum memiliki nomor WhatsApp.');
-      return;
-    }
-
+    if (!invoice || !client) { toast.error('Client tidak ditemukan.'); return; }
+    if (!client.whatsapp) { toast.error('Client ini belum memiliki nomor WhatsApp.'); return; }
     const waNumber = client.whatsapp.replace(/\D/g, '');
-
     const dueDate = invoice.dueDate.toDate();
     const total = (invoice.amount ?? 0) + (invoice.tax ?? 0) - (invoice.discount ?? 0);
-
-    const message = `Halo ${client.name}! 👋
-
-Berikut invoice untuk pekerjaan yang telah diselesaikan:
-
-📄 *${invoice.invoiceNumber}*
-🏢 *${client.company || ''}*
-💰 *Total: ${formatIDR(total)}*
-📅 *Jatuh Tempo: ${format(dueDate, 'dd MMMM yyyy', { locale: id })}*
-
-Mohon melakukan pembayaran sebelum jatuh tempo. Terima kasih atas kepercayaan nya! 🙏
-
-—
-Dikirim via Freelancer OS`;
-
-    const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
+    const message = `Halo ${client.name}! 👋\n\nBerikut invoice untuk pekerjaan yang telah diselesaikan:\n\n📄 *${invoice.invoiceNumber}*\n🏢 *${client.company || ''}*\n💰 *Total: ${formatIDR(total)}*\n📅 *Jatuh Tempo: ${format(dueDate, 'dd MMMM yyyy', { locale: id })}*\n\nMohon melakukan pembayaran sebelum jatuh tempo. Terima kasih! 🙏\n\n—\nDikirim via Freelancer OS`;
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   if (loading) return <PageSkeleton />;
@@ -122,24 +113,22 @@ Dikirim via Freelancer OS`;
 
   const client = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) : null;
   const project = invoice.projectId ? projects.find((p) => p.id === invoice.projectId) : null;
-
-  const subtotal = invoice.amount ?? 0;
-  const tax = invoice.tax ?? 0;
-  const discount = invoice.discount ?? 0;
-  const total = subtotal + tax - discount;
+  const total = (invoice.amount ?? 0) + (invoice.tax ?? 0) - (invoice.discount ?? 0);
   const statusColor = STATUS_COLORS[invoice.status] ?? STATUS_COLORS.draft;
+  const invoiceHTML = buildInvoiceHTML({ invoice, client: client ?? null, projectTitle: project?.title });
 
   return (
     <div style={{ maxWidth: '860px', margin: '0 auto' }}>
 
+      {/* Hidden iframe for PDF rendering */}
+      <iframe
+        ref={iframeRef}
+        style={{ display: 'none', width: '210mm', height: '297mm' }}
+        title="invoice-pdf"
+      />
+
       {/* ── Top bar ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '28px',
-        gap: '12px',
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', gap: '12px' }}>
         <Button
           variant="ghost"
           size="sm"
@@ -155,13 +144,7 @@ Dikirim via Freelancer OS`;
             variant="outline"
             size="sm"
             onClick={handleDelete}
-            style={{
-              borderColor: '#fca5a5',
-              color: '#dc2626',
-              background: 'transparent',
-              fontSize: '12px',
-              gap: '6px',
-            }}
+            style={{ borderColor: '#fca5a5', color: '#dc2626', background: 'transparent', fontSize: '12px', gap: '6px' }}
           >
             <Trash2 style={{ width: '14px', height: '14px' }} />
           </Button>
@@ -186,15 +169,8 @@ Dikirim via Freelancer OS`;
             onClick={handleDownloadPDF}
             disabled={downloading}
             style={{
-              background: '#1c1917',
-              color: '#fafaf9',
-              border: 'none',
-              fontSize: '12px',
-              fontWeight: '600',
-              gap: '6px',
-              padding: '0 16px',
-              height: '34px',
-              borderRadius: '6px',
+              background: '#1c1917', color: '#fafaf9', border: 'none',
+              fontSize: '12px', fontWeight: '600', gap: '6px', padding: '0 16px', height: '34px', borderRadius: '6px',
             }}
           >
             <Download style={{ width: '14px', height: '14px' }} />
@@ -203,7 +179,7 @@ Dikirim via Freelancer OS`;
         </div>
       </div>
 
-      {/* ── Invoice card ── */}
+      {/* ── Invoice preview card ── */}
       <div style={{
         background: '#fafaf9',
         borderRadius: '12px',
@@ -211,54 +187,40 @@ Dikirim via Freelancer OS`;
         boxShadow: '0 4px 24px rgba(28,25,23,0.08), 0 1px 4px rgba(28,25,23,0.04)',
         border: '1px solid #e7e5e4',
       }}>
-        {/* Top accent */}
+        {/* Top accent bar */}
         <div style={{ height: '4px', background: 'linear-gradient(90deg, #1c1917 0%, #57534e 50%, #a8a29e 100%)' }} />
 
-        {/* PDF Template */}
-        <InvoicePDFTemplate
-          invoice={invoice}
-          client={client ?? null}
-          projectTitle={project?.title}
+        {/* Invoice HTML rendered inline — styles from head embedded, stripped of html/body wrappers */}
+        <div
+          style={{ padding: '0' }}
+          dangerouslySetInnerHTML={{
+            __html: invoiceHTML
+              // Remove <html>, <head>, <body> wrappers but keep <style> (which uses class names)
+              .replace(/<html[^>]*>/g, '')
+              .replace(/<\/html>/g, '')
+              .replace(/<head>[\s\S]*?<\/head>/g, '')
+              .replace(/<body>/g, '')
+              .replace(/<\/body>/g, '')
+              // Remove bottom-bar (we add it via React)
+              .replace(/<div class="bottom-bar"><\/div>/g, ''),
+          }}
         />
 
-        {/* Bottom accent */}
+        {/* Bottom accent bar */}
         <div style={{ height: '4px', background: 'linear-gradient(90deg, #a8a29e 0%, #1c1917 100%)' }} />
       </div>
 
-      {/* ── Quick actions footer ── */}
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        marginTop: '16px',
-        justifyContent: 'center',
-      }}>
+      {/* ── Quick actions ── */}
+      <div style={{ display: 'flex', gap: '12px', marginTop: '16px', justifyContent: 'center' }}>
         <button
-          style={{
-            fontSize: '12px',
-            color: '#78716c',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            transition: 'all 0.15s',
-          }}
+          style={{ fontSize: '12px', color: '#78716c', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: '6px' }}
           onMouseOver={(e) => { (e.target as HTMLElement).style.color = '#1c1917'; (e.target as HTMLElement).style.background = '#f5f4f1'; }}
           onMouseOut={(e) => { (e.target as HTMLElement).style.color = '#78716c'; (e.target as HTMLElement).style.background = 'transparent'; }}
         >
           Mark as Paid
         </button>
         <button
-          style={{
-            fontSize: '12px',
-            color: '#78716c',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            transition: 'all 0.15s',
-          }}
+          style={{ fontSize: '12px', color: '#78716c', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: '6px' }}
           onMouseOver={(e) => { (e.target as HTMLElement).style.color = '#1c1917'; (e.target as HTMLElement).style.background = '#f5f4f1'; }}
           onMouseOut={(e) => { (e.target as HTMLElement).style.color = '#78716c'; (e.target as HTMLElement).style.background = 'transparent'; }}
         >

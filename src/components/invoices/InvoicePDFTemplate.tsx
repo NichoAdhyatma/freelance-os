@@ -1,11 +1,12 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+import type { Invoice } from '@/types/invoice';
+import type { Client } from '@/types/client';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-
-import type { Invoice, InvoiceItem } from '@/types/invoice';
-import type { Client } from '@/types/client';
 import { formatIDR } from '@/lib/utils';
+import type { InvoiceItem } from '@/types/invoice';
 
 interface InvoicePDFTemplateProps {
   invoice: Invoice;
@@ -14,19 +15,15 @@ interface InvoicePDFTemplateProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  paid: '#16a34a',
-  sent: '#2563eb',
-  pending: '#d97706',
-  draft: '#6b7280',
-  overdue: '#dc2626',
-  cancelled: '#9ca3af',
+  paid: '#16a34a', sent: '#2563eb', pending: '#d97706',
+  draft: '#6b7280', overdue: '#dc2626', cancelled: '#9ca3af',
 };
 
-export function InvoicePDFTemplate({
-  invoice,
-  client,
-  projectTitle,
-}: InvoicePDFTemplateProps) {
+/** Pure HTML string — no Tailwind, no CSS vars, no oklch().
+ *  Rendered inside a sandboxed iframe so html2canvas captures a clean image.
+ */
+export function buildInvoiceHTML(props: InvoicePDFTemplateProps): string {
+  const { invoice, client, projectTitle } = props;
   const subtotal = invoice.amount ?? 0;
   const tax = invoice.tax ?? 0;
   const discount = invoice.discount ?? 0;
@@ -43,403 +40,175 @@ export function InvoicePDFTemplate({
   const paidDate = invoice.paidAt?.toDate();
   const statusColor = STATUS_COLORS[invoice.status] ?? STATUS_COLORS.draft;
 
-  return (
-    <div
-      id="invoice-pdf-template"
-      className="print-root"
-      style={{
-        width: '210mm',
-        minHeight: '297mm',
-        background: '#fafaf9',
-        fontFamily: "'DM Sans', 'Helvetica Neuei', Helvetica, Arial, sans-serif",
-        color: '#1c1917',
-        padding: '0',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* ── Top accent bar ──────────────────────────────────────────── */}
-      <div style={{ height: '4px', background: `linear-gradient(90deg, #1c1917 0%, #57534e 50%, #a8a29e 100%)` }} />
+  const statusPill = `
+    <span style="
+      display:inline-flex;align-items:center;gap:5px;
+      padding:2px 8px;border-radius:100px;
+      background:${statusColor}18;border:1px solid ${statusColor}40;
+    ">
+      <span style="width:5px;height:5px;border-radius:50%;background:${statusColor};display:block"></span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${statusColor}">${invoice.status}</span>
+    </span>`;
 
-      {/* ── Main content wrapper ─────────────────────────────────────── */}
-      <div style={{ padding: '40px 44px 36px' }}>
+  const rowsHtml = items.map((item, i) => `
+    <div style="display:grid;grid-template-columns:1fr 56px 96px 96px;padding:10px 0;border-bottom:1px solid #e7e5e4;">
+      <span style="font-size:12px;color:#1c1917;line-height:1.4;padding-right:16px">${item.description}</span>
+      <span style="font-size:12px;color:#57534e;text-align:right;font-variant-numeric:tabular-nums">${item.quantity}</span>
+      <span style="font-size:12px;color:#57534e;text-align:right;font-variant-numeric:tabular-nums">${formatIDR(item.unitPrice)}</span>
+      <span style="font-size:12px;font-weight:600;color:#1c1917;text-align:right;font-variant-numeric:tabular-nums">${formatIDR(item.total)}</span>
+    </div>`).join('');
 
-        {/* Header row */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          marginBottom: '40px',
-          gap: '16px',
-        }}>
-          {/* Left: wordmark + label */}
-          <div>
-            <div style={{
-              fontSize: '9px',
-              fontWeight: '600',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: '#a8a29e',
-              marginBottom: '6px',
-            }}>
-              Invoice
-            </div>
-            <div style={{
-              fontSize: '32px',
-              fontWeight: '700',
-              color: '#1c1917',
-              letterSpacing: '-0.02em',
-              lineHeight: '1',
-            }}>
-              FREELANCER
-              <br />
-              <span style={{ color: '#78716c' }}>OS</span>
-            </div>
-          </div>
+  const subtotalRows = `
+    <div style="display:flex;justify-content:space-between;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid #e7e5e4;">
+      <span style="font-size:11px;color:#78716c">Subtotal</span>
+      <span style="font-size:12px;color:#1c1917;font-variant-numeric:tabular-nums">${formatIDR(subtotal)}</span>
+    </div>`;
+  const taxRow = tax > 0 ? `
+    <div style="display:flex;justify-content:space-between;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid #e7e5e4;">
+      <span style="font-size:11px;color:#78716c">PPN 11%</span>
+      <span style="font-size:12px;color:#1c1917;font-variant-numeric:tabular-nums">${formatIDR(tax)}</span>
+    </div>` : '';
+  const discountRow = discount > 0 ? `
+    <div style="display:flex;justify-content:space-between;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid #e7e5e4;">
+      <span style="font-size:11px;color:#78716c">Diskon</span>
+      <span style="font-size:12px;color:#16a34a;font-variant-numeric:tabular-nums">–${formatIDR(discount)}</span>
+    </div>` : '';
+  const grandTotal = `
+    <div style="display:flex;justify-content:space-between;align-items:center;
+      background:#1c1917;border-radius:6px;padding:10px 14px;margin-top:2px;">
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#a8a29e">Total</span>
+      <span style="font-size:16px;font-weight:800;color:#fafaf9;font-variant-numeric:tabular-nums">${formatIDR(total)}</span>
+    </div>`;
+  const palabras = `<div style="margin-top:6px;text-align:right;">
+    <span style="font-size:10px;color:#a8a29e;font-style:italic">${numberToWords(total)}</span>
+  </div>`;
 
-          {/* Right: meta block */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: '3px',
-          }}>
-            <div style={{
-              fontSize: '11px',
-              color: '#78716c',
-              fontWeight: '400',
-            }}>
-              Invoice No.
-            </div>
-            <div style={{
-              fontSize: '13px',
-              fontWeight: '700',
-              color: '#1c1917',
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.02em',
-            }}>
-              {invoice.invoiceNumber}
-            </div>
-          </div>
-        </div>
+  const notesHtml = invoice.notes ? `
+    <div style="background:#f5f4f1;border-left:3px solid #1c1917;border-radius:0 6px 6px 0;padding:14px 16px;margin-bottom:32px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#a8a29e;margin-bottom:8px">Payment Terms &amp; Notes</div>
+      <p style="font-size:11px;color:#57534e;line-height:1.6;margin:0;white-space:pre-wrap">${invoice.notes}</p>
+    </div>` : '';
 
-        {/* Divider */}
-        <div style={{
-          height: '1px',
-          background: 'linear-gradient(90deg, #1c1917 0%, #e7e5e4 60%, transparent 100%)',
-          marginBottom: '32px',
-        }} />
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 210mm; min-height: 297mm; background: #fafaf9; font-family: 'DM Sans', 'Helvetica Neue', Arial, sans-serif; color: #1c1917; }
+  .page { padding: 40px 44px 36px; }
+  .top-bar { height: 4px; background: linear-gradient(90deg, #1c1917 0%, #57534e 50%, #a8a29e 100%); }
+  .bottom-bar { height: 4px; background: linear-gradient(90deg, #a8a29e 0%, #1c1917 100%); margin-top: -4px; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 40px; gap: 16px; }
+  .wordmark-label { font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #a8a29e; margin-bottom: 6px; }
+  .wordmark { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .wordmark .sub { color: #78716c; }
+  .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .meta-label { font-size: 11px; color: #78716c; }
+  .meta-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .divider { height: 1px; background: linear-gradient(90deg, #1c1917 0%, #e7e5e4 60%, transparent 100%); margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 36px; }
+  .section-label { font-size: 9px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #a8a29e; margin-bottom: 12px; }
+  .client-name { font-size: 17px; font-weight: 700; color: #1c1917; margin-bottom: 3px; letter-spacing: -0.01em; }
+  .client-company { font-size: 12px; color: #78716c; margin-bottom: 6px; }
+  .client-detail { font-size: 11px; color: #57534e; }
+  .details-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+  .detail-row { display: grid; grid-template-columns: auto auto; gap: 2px 24px; align-items: end; }
+  .detail-key { font-size: 10px; color: #a8a29e; font-weight: 500; }
+  .detail-val { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .table-header { display: grid; grid-template-columns: 1fr 56px 96px 96px; padding-bottom: 8px; border-bottom: 2px solid #1c1917; margin-bottom: 0; }
+  .th { font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #78716c; }
+  .totals { display: flex; justify-content: flex-end; margin-bottom: 32px; }
+  .totals-box { width: 220px; }
+  .footer { border-top: 1px solid #e7e5e4; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .footer-text { font-size: 10px; color: #a8a29e; }
+  .footer-date { font-size: 10px; color: #c4bfbb; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top-bar"></div>
 
-        {/* Bill To + Details grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '0',
-          marginBottom: '36px',
-        }}>
-          {/* Bill To */}
-          <div>
-            <div style={{
-              fontSize: '9px',
-              fontWeight: '600',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              color: '#a8a29e',
-              marginBottom: '12px',
-            }}>
-              Bill To
-            </div>
-            {client ? (
-              <div>
-                <div style={{
-                  fontSize: '17px',
-                  fontWeight: '700',
-                  color: '#1c1917',
-                  marginBottom: '3px',
-                  letterSpacing: '-0.01em',
-                }}>
-                  {client.name}
-                </div>
-                {client.company && (
-                  <div style={{ fontSize: '12px', color: '#78716c', marginBottom: '6px' }}>
-                    {client.company}
-                  </div>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {client.email && (
-                    <span style={{ fontSize: '11px', color: '#57534e' }}>{client.email}</span>
-                  )}
-                  {client.whatsapp && (
-                    <span style={{ fontSize: '11px', color: '#57534e' }}>{client.whatsapp}</span>
-                  )}
-                  {client.address && (
-                    <span style={{ fontSize: '11px', color: '#57534e' }}>{client.address}</span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <span style={{ fontSize: '12px', color: '#a8a29e', fontStyle: 'italic' }}>No client</span>
-            )}
-          </div>
-
-          {/* Invoice details — right aligned */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: '0',
-          }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'auto auto',
-              gap: '2px 24px',
-              alignItems: 'end',
-            }}>
-              <span style={{ fontSize: '10px', color: '#a8a29e', fontWeight: '500' }}>Date</span>
-              <span style={{ fontSize: '11px', color: '#1c1917', fontWeight: '600', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {format(invoice.createdAt.toDate(), 'dd MMM yyyy', { locale: id })}
-              </span>
-
-              <span style={{ fontSize: '10px', color: '#a8a29e', fontWeight: '500' }}>Due</span>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                textAlign: 'right',
-                fontVariantNumeric: 'tabular-nums',
-                color: dueDate < new Date() && invoice.status !== 'paid' ? statusColor : '#1c1917',
-              }}>
-                {format(dueDate, 'dd MMM yyyy', { locale: id })}
-              </span>
-
-              {projectTitle && (
-                <>
-                  <span style={{ fontSize: '10px', color: '#a8a29e', fontWeight: '500' }}>Project</span>
-                  <span style={{ fontSize: '11px', color: '#1c1917', textAlign: 'right' }}>{projectTitle}</span>
-                </>
-              )}
-
-              {paidDate && (
-                <>
-                  <span style={{ fontSize: '10px', color: '#a8a29e', fontWeight: '500' }}>Paid On</span>
-                  <span style={{ fontSize: '11px', fontWeight: '700', color: '#16a34a', textAlign: 'right' }}>
-                    {format(paidDate, 'dd MMM yyyy', { locale: id })}
-                  </span>
-                </>
-              )}
-
-              {/* Status pill */}
-              <span style={{ fontSize: '10px', color: '#a8a29e', fontWeight: '500' }}>Status</span>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '2px 8px',
-                borderRadius: '100px',
-                background: statusColor + '18',
-                border: `1px solid ${statusColor}40`,
-              }}>
-                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: statusColor, display: 'block' }} />
-                <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: statusColor }}>
-                  {invoice.status}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Line items section */}
-        <div style={{ marginBottom: '28px' }}>
-          {/* Table header */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 56px 96px 96px',
-            gap: '0',
-            paddingBottom: '8px',
-            borderBottom: '2px solid #1c1917',
-            marginBottom: '0',
-          }}>
-            <span style={{
-              fontSize: '9px',
-              fontWeight: '700',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#78716c',
-            }}>Description</span>
-            <span style={{
-              fontSize: '9px',
-              fontWeight: '700',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#78716c',
-              textAlign: 'right',
-            }}>Qty</span>
-            <span style={{
-              fontSize: '9px',
-              fontWeight: '700',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#78716c',
-              textAlign: 'right',
-            }}>Unit Price</span>
-            <span style={{
-              fontSize: '9px',
-              fontWeight: '700',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#78716c',
-              textAlign: 'right',
-            }}>Amount</span>
-          </div>
-
-          {/* Table rows */}
-          {items.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 56px 96px 96px',
-                gap: '0',
-                paddingTop: '10px',
-                paddingBottom: '10px',
-                borderBottom: '1px solid #e7e5e4',
-              }}
-            >
-              <span style={{ fontSize: '12px', color: '#1c1917', lineHeight: '1.4', paddingRight: '16px' }}>
-                {item.description}
-              </span>
-              <span style={{ fontSize: '12px', color: '#57534e', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {item.quantity}
-              </span>
-              <span style={{ fontSize: '12px', color: '#57534e', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {formatIDR(item.unitPrice)}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: '600', color: '#1c1917', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                {formatIDR(item.total)}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Totals block — right aligned */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: '32px',
-        }}>
-          <div style={{ width: '220px' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              paddingBottom: '6px',
-              marginBottom: '6px',
-              borderBottom: '1px solid #e7e5e4',
-            }}>
-              <span style={{ fontSize: '11px', color: '#78716c' }}>Subtotal</span>
-              <span style={{ fontSize: '12px', color: '#1c1917', fontVariantNumeric: 'tabular-nums' }}>{formatIDR(subtotal)}</span>
-            </div>
-            {tax > 0 && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                paddingBottom: '6px',
-                marginBottom: '6px',
-                borderBottom: '1px solid #e7e5e4',
-              }}>
-                <span style={{ fontSize: '11px', color: '#78716c' }}>PPN 11%</span>
-                <span style={{ fontSize: '12px', color: '#1c1917', fontVariantNumeric: 'tabular-nums' }}>{formatIDR(tax)}</span>
-              </div>
-            )}
-            {discount > 0 && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                paddingBottom: '6px',
-                marginBottom: '6px',
-                borderBottom: '1px solid #e7e5e4',
-              }}>
-                <span style={{ fontSize: '11px', color: '#78716c' }}>Discount</span>
-                <span style={{ fontSize: '12px', color: '#16a34a', fontVariantNumeric: 'tabular-nums' }}>–{formatIDR(discount)}</span>
-              </div>
-            )}
-            {/* Grand total — accent block */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              background: '#1c1917',
-              borderRadius: '6px',
-              padding: '10px 14px',
-              marginTop: '2px',
-            }}>
-              <span style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#a8a29e' }}>
-                Total
-              </span>
-              <span style={{ fontSize: '16px', fontWeight: '800', color: '#fafaf9', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.01em' }}>
-                {formatIDR(total)}
-              </span>
-            </div>
-            {/* Terbilang */}
-            <div style={{ marginTop: '6px', textAlign: 'right' }}>
-              <span style={{ fontSize: '10px', color: '#a8a29e', fontStyle: 'italic' }}>
-                {numberToWords(total)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Notes block */}
-        {invoice.notes && (
-          <div style={{
-            background: '#f5f4f1',
-            borderLeft: '3px solid #1c1917',
-            borderRadius: '0 6px 6px 0',
-            padding: '14px 16px',
-            marginBottom: '32px',
-          }}>
-            <div style={{
-              fontSize: '9px',
-              fontWeight: '700',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              color: '#a8a29e',
-              marginBottom: '8px',
-            }}>
-              Payment Terms &amp; Notes
-            </div>
-            <p style={{ fontSize: '11px', color: '#57534e', lineHeight: '1.6', margin: '0', whiteSpace: 'pre-wrap' }}>
-              {invoice.notes}
-            </p>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div style={{
-          borderTop: '1px solid #e7e5e4',
-          paddingTop: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <span style={{ fontSize: '10px', color: '#a8a29e' }}>
-            Powered by Freelancer OS
-          </span>
-          <span style={{
-            fontSize: '10px',
-            color: '#c4bfbb',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {format(new Date(), 'dd MMM yyyy', { locale: id })}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Bottom accent bar ─────────────────────────────────────────── */}
-      <div style={{ height: '4px', background: `linear-gradient(90deg, #a8a29e 0%, #1c1917 100%)` }} />
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="wordmark-label">Invoice</div>
+      <div class="wordmark">FREELANCER<span class="sub">OS</span></div>
     </div>
-  );
+    <div class="meta">
+      <div class="meta-label">Invoice No.</div>
+      <div class="meta-value">${invoice.invoiceNumber}</div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="divider"></div>
+
+  <!-- Bill To + Details -->
+  <div class="grid">
+    <div>
+      <div class="section-label">Bill To</div>
+      ${client ? `
+        <div class="client-name">${client.name}</div>
+        ${client.company ? `<div class="client-company">${client.company}</div>` : ''}
+        <div style="display:flex;flex-direction:column;gap:2px">
+          ${client.email ? `<span class="client-detail">${client.email}</span>` : ''}
+          ${client.whatsapp ? `<span class="client-detail">${client.whatsapp}</span>` : ''}
+          ${client.address ? `<span class="client-detail">${client.address}</span>` : ''}
+        </div>` : '<span style="font-size:12px;color:#a8a29e;font-style:italic">No client</span>'}
+    </div>
+    <div class="details-right">
+      <div class="detail-row">
+        <span class="detail-key">Date</span>
+        <span class="detail-val">${format(invoice.createdAt.toDate(), 'dd MMM yyyy', { locale: id })}</span>
+        <span class="detail-key">Due</span>
+        <span class="detail-val" style="color:${dueDate < new Date() && invoice.status !== 'paid' ? statusColor : '#1c1917'}">${format(dueDate, 'dd MMM yyyy', { locale: id })}</span>
+        ${projectTitle ? `<span class="detail-key">Project</span><span class="detail-val" style="font-weight:400">${projectTitle}</span>` : ''}
+        ${paidDate ? `<span class="detail-key">Paid On</span><span class="detail-val" style="color:#16a34a;font-weight:700">${format(paidDate, 'dd MMM yyyy', { locale: id })}</span>` : ''}
+        <span class="detail-key">Status</span>
+        <span>${statusPill}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="table-header">
+    <span class="th">Description</span>
+    <span class="th" style="text-align:right">Qty</span>
+    <span class="th" style="text-align:right">Unit Price</span>
+    <span class="th" style="text-align:right">Amount</span>
+  </div>
+  <div>${rowsHtml}</div>
+
+  <!-- Totals -->
+  <div class="totals">
+    <div class="totals-box">
+      ${subtotalRows}
+      ${taxRow}
+      ${discountRow}
+      ${grandTotal}
+      ${palabras}
+    </div>
+  </div>
+
+  ${notesHtml}
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-text">Powered by Freelancer OS</span>
+    <span class="footer-date">${format(new Date(), 'dd MMM yyyy', { locale: id })}</span>
+  </div>
+</div>
+<div class="bottom-bar"></div>
+</body>
+</html>`;
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────────
+export function InvoicePDFTemplate(_props: InvoicePDFTemplateProps) {
+  return null; // unused — we render via iframe instead
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function numberToWords(num: number): string {
   if (num === 0) return 'nol rupiah';
