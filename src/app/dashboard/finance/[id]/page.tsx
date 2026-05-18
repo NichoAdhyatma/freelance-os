@@ -2,11 +2,11 @@
 
 import { ArrowLeft, Download, Edit, Share2, Trash2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
 
 import { buildInvoiceHTML } from '@/components/invoices/InvoicePDFTemplate';
+import { generateInvoicePDF } from '@/lib/pdf/invoicePdfGenerator';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import { useClients } from '@/hooks/useClients';
@@ -18,11 +18,6 @@ import type { Invoice } from '@/types/invoice';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
-const STATUS_COLORS: Record<string, string> = {
-  paid: '#16a34a', sent: '#2563eb', pending: '#d97706',
-  draft: '#6b7280', overdue: '#dc2626', cancelled: '#9ca3af',
-};
-
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -31,7 +26,6 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { clients } = useClients();
   const { projects } = useProjects();
@@ -52,35 +46,15 @@ export default function InvoiceDetailPage() {
     if (!invoice) return;
     setDownloading(true);
     try {
-      // Build pure HTML invoice
-      const html = buildInvoiceHTML({ invoice, client: client ?? null, projectTitle: project?.title });
+      const client = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) : null;
+      const project = invoice.projectId ? projects.find((p) => p.id === invoice.projectId) : null;
 
-      // Render into iframe, wait for fonts/resources
-      const iframe = iframeRef.current as HTMLIFrameElement & { contentWindow: Window };
-      if (!iframe) { toast.error('Iframe not found'); return; }
-
-      iframe.srcdoc = html;
-      await new Promise((res) => setTimeout(res, 600));
-
-      const win = iframe.contentWindow;
-      const iframeDoc = win.document;
-      const body = iframeDoc.body;
-
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(body, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#fafaf9',
+      const pdf = generateInvoicePDF({
+        invoice,
+        client: client ?? null,
+        projectTitle: project?.title,
       });
 
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgW = canvas.width; const imgH = canvas.height;
-      const ratio = Math.min(pdfWidth / imgW, pdfHeight / imgH);
-      pdf.addImage(imgData, 'PNG', 0, 0, imgW * ratio, imgH * ratio);
       pdf.save(`${invoice.invoiceNumber}.pdf`);
       toast.success('PDF downloaded');
     } catch (err) {
@@ -113,19 +87,10 @@ export default function InvoiceDetailPage() {
 
   const client = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) : null;
   const project = invoice.projectId ? projects.find((p) => p.id === invoice.projectId) : null;
-  const total = (invoice.amount ?? 0) + (invoice.tax ?? 0) - (invoice.discount ?? 0);
-  const statusColor = STATUS_COLORS[invoice.status] ?? STATUS_COLORS.draft;
   const invoiceHTML = buildInvoiceHTML({ invoice, client: client ?? null, projectTitle: project?.title });
 
   return (
     <div style={{ maxWidth: '860px', margin: '0 auto' }}>
-
-      {/* Hidden iframe for PDF rendering */}
-      <iframe
-        ref={iframeRef}
-        style={{ display: 'none', width: '210mm', height: '297mm' }}
-        title="invoice-pdf"
-      />
 
       {/* ── Top bar ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', gap: '12px' }}>
@@ -188,26 +153,24 @@ export default function InvoiceDetailPage() {
         border: '1px solid #e7e5e4',
       }}>
         {/* Top accent bar */}
-        <div style={{ height: '4px', background: 'linear-gradient(90deg, #1c1917 0%, #57534e 50%, #a8a29e 100%)' }} />
+        <div style={{ height: '4px', background: '#1c1917' }} />
 
-        {/* Invoice HTML rendered inline — styles from head embedded, stripped of html/body wrappers */}
+        {/* Invoice HTML rendered inline — stripped of html/body wrappers */}
         <div
           style={{ padding: '0' }}
           dangerouslySetInnerHTML={{
             __html: invoiceHTML
-              // Remove <html>, <head>, <body> wrappers but keep <style> (which uses class names)
               .replace(/<html[^>]*>/g, '')
               .replace(/<\/html>/g, '')
               .replace(/<head>[\s\S]*?<\/head>/g, '')
               .replace(/<body>/g, '')
               .replace(/<\/body>/g, '')
-              // Remove bottom-bar (we add it via React)
               .replace(/<div class="bottom-bar"><\/div>/g, ''),
           }}
         />
 
         {/* Bottom accent bar */}
-        <div style={{ height: '4px', background: 'linear-gradient(90deg, #a8a29e 0%, #1c1917 100%)' }} />
+        <div style={{ height: '4px', background: '#1c1917' }} />
       </div>
 
       {/* ── Quick actions ── */}

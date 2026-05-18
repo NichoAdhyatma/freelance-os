@@ -97,8 +97,8 @@ export function buildInvoiceHTML(props: InvoicePDFTemplateProps): string {
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { width: 210mm; min-height: 297mm; background: #fafaf9; font-family: 'DM Sans', 'Helvetica Neue', Arial, sans-serif; color: #1c1917; }
   .page { padding: 40px 44px 36px; }
-  .top-bar { height: 4px; background: linear-gradient(90deg, #1c1917 0%, #57534e 50%, #a8a29e 100%); }
-  .bottom-bar { height: 4px; background: linear-gradient(90deg, #a8a29e 0%, #1c1917 100%); margin-top: -4px; }
+  .top-bar { height: 4px; background: #1c1917; }
+  .bottom-bar { height: 4px; background: #1c1917; margin-top: -4px; }
   .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 40px; gap: 16px; }
   .wordmark-label { font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #a8a29e; margin-bottom: 6px; }
   .wordmark { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
@@ -106,7 +106,7 @@ export function buildInvoiceHTML(props: InvoicePDFTemplateProps): string {
   .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
   .meta-label { font-size: 11px; color: #78716c; }
   .meta-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .divider { height: 1px; background: linear-gradient(90deg, #1c1917 0%, #e7e5e4 60%, transparent 100%); margin-bottom: 32px; }
+  .divider { height: 1px; background: #e7e5e4; margin-bottom: 32px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 36px; }
   .section-label { font-size: 9px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: #a8a29e; margin-bottom: 12px; }
   .client-name { font-size: 17px; font-weight: 700; color: #1c1917; margin-bottom: 3px; letter-spacing: -0.01em; }
