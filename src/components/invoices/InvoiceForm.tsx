@@ -37,14 +37,26 @@ import { updateProject } from '@/lib/services/projectService';
 import { cn } from '@/lib/utils';
 import { type Invoice, type InvoiceFormData, InvoiceStatus } from '@/types/invoice';
 
-interface InvoiceFormProps {
+interface DefaultIds {
+  defaultClientId?: string;
+  defaultProjectId?: string;
+}
+
+interface InvoiceFormProps extends DefaultIds {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: InvoiceFormData) => Promise<void>;
   initialData?: Invoice | null;
 }
 
-export function InvoiceForm({ open, onOpenChange, onSubmit, initialData }: InvoiceFormProps) {
+export function InvoiceForm({
+  open,
+  onOpenChange,
+  onSubmit,
+  initialData,
+  defaultClientId,
+  defaultProjectId,
+}: InvoiceFormProps) {
   const { clients } = useClients();
   const { projects } = useProjects();
   const [loading, setLoading] = useState(false);
@@ -71,8 +83,8 @@ export function InvoiceForm({ open, onOpenChange, onSubmit, initialData }: Invoi
         setDueDate(initialData.dueDate.toDate());
         setNotes(initialData.notes || '');
       } else {
-        setClientId('');
-        setProjectId('');
+        setClientId(defaultClientId ?? '');
+        setProjectId(defaultProjectId ?? '');
         setAmount('');
         setTax('');
         setDiscount('');
