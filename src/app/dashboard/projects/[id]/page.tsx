@@ -85,7 +85,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const { loading: authLoading } = useAuth();
   const kanbanRef = useRef<TaskKanbanHandle>(null);
   const { total: taskTotal, doneCount: taskDone, editTask } = useTasks({ projectId: id });
-  const { invoices, edit: editInvoice, remove: removeInvoice, markPaid, add: addInvoice } = useInvoices();
+  const { invoices, remove: removeInvoice, markPaid, add: addInvoice } = useInvoices();
 
   const [formOpen, setFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
@@ -98,6 +98,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const totalBilled = projectInvoices.reduce((sum, i) => sum + i.amount, 0);
   const totalPaid = projectInvoices.reduce((sum, i) => {
     if (i.status === 'paid') return sum + i.amount;
+    if ((i.amountPaid ?? 0) > 0) return sum + i.amountPaid!;
     return sum;
   }, 0);
   const outstanding = totalBilled - totalPaid;
@@ -133,6 +134,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
   const handleCreateInvoice = async (data: any) => {
     await addInvoice(data);
+    toast.success('Invoice created');
   };
 
   const getInvoiceStatusColor = (status: string): string => {

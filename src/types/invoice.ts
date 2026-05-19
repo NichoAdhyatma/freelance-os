@@ -9,6 +9,7 @@ export interface Invoice {
   title?: string;
   projectId?: string;
   amount: number;
+  amountPaid?: number;
   tax?: number;
   discount?: number;
   status: InvoiceStatus;
