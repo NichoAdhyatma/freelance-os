@@ -1,6 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -8,6 +9,7 @@ import {
   Clock,
   FolderKanban,
   Pencil,
+  Receipt,
   TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -15,6 +17,7 @@ import { useRef, useState } from 'react';
 import { use } from 'react';
 import { toast } from 'sonner';
 
+import { InvoiceForm } from '@/components/invoices/InvoiceForm';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { TaskForm } from '@/components/projects/TaskForm';
 import { TaskKanban, type TaskKanbanHandle } from '@/components/projects/TaskKanban';
@@ -23,11 +26,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
+import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
+import { formatIDR } from '@/lib/utils';
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import type { ProjectPriority, ProjectStatus } from '@/types/project';
 import { type Task, type TaskFormData } from '@/types/task';
@@ -60,15 +73,6 @@ const PRIORITY_COLORS: Record<ProjectPriority, string> = {
   urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
-function formatIDR(amount: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -81,11 +85,22 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const { loading: authLoading } = useAuth();
   const kanbanRef = useRef<TaskKanbanHandle>(null);
   const { total: taskTotal, doneCount: taskDone, editTask } = useTasks({ projectId: id });
+  const { invoices, edit: editInvoice, remove: removeInvoice, markPaid, add: addInvoice } = useInvoices();
 
   const [formOpen, setFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [defaultTaskStatus, setDefaultTaskStatus] = useState<Task['status']>('todo');
+  const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
+
+  const projectInvoices = invoices.filter((i) => i.projectId === id);
+
+  const totalBilled = projectInvoices.reduce((sum, i) => sum + i.amount, 0);
+  const totalPaid = projectInvoices.reduce((sum, i) => {
+    if (i.status === 'paid') return sum + i.amount;
+    return sum;
+  }, 0);
+  const outstanding = totalBilled - totalPaid;
 
   const project = projects.find((p) => p.id === id);
   const loading = projectsLoading || authLoading;
@@ -114,6 +129,22 @@ export default function ProjectDetailPage({ params }: PageProps) {
     }
     setTaskFormOpen(false);
     setEditingTask(null);
+  };
+
+  const handleCreateInvoice = async (data: any) => {
+    await addInvoice(data);
+  };
+
+  const getInvoiceStatusColor = (status: string): string => {
+    const colors: Record<string, string> = {
+      draft: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
+      sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+      paid: 'bg-green-500/10 text-green-400 border-green-500/20',
+      overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
+      cancelled: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
+    };
+    return colors[status] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
   };
 
   if (loading) {
@@ -226,12 +257,123 @@ export default function ProjectDetailPage({ params }: PageProps) {
       <Tabs defaultValue="tasks" className="w-full">
         <TabsList>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks" className="mt-4">
           <TaskKanban ref={kanbanRef} projectId={id} onEditTask={handleTaskEdit} />
+        </TabsContent>
+
+        <TabsContent value="invoices" className="mt-4">
+          {projectInvoices.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <Receipt className="text-muted-foreground/20 mb-3 h-10 w-10" />
+                <h3 className="mb-1 text-sm font-medium">No invoices for this project yet</h3>
+                <p className="text-muted-foreground mb-4 text-xs">
+                  Create your first invoice to track payments for this project.
+                </p>
+                <Button size="sm" onClick={() => setInvoiceFormOpen(true)}>
+                  Create First Invoice
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-muted-foreground mb-1 text-xs uppercase tracking-wide">Total Billed</p>
+                    <p className="text-xl font-bold">{formatIDR(totalBilled)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-muted-foreground mb-1 text-xs uppercase tracking-wide">Total Paid</p>
+                    <p className="text-xl font-bold text-green-500">{formatIDR(totalPaid)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-muted-foreground mb-1 text-xs uppercase tracking-wide">Outstanding</p>
+                    <p className="text-xl font-bold text-yellow-500">{formatIDR(outstanding)}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Invoice Table */}
+              <div className="overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Invoice #</TableHead>
+                      <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Amount</TableHead>
+                      <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Status</TableHead>
+                      <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Due Date</TableHead>
+                      <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projectInvoices.map((inv) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="border-border border-r font-mono text-xs">
+                          {inv.invoiceNumber}
+                        </TableCell>
+                        <TableCell className="border-border border-r text-sm font-medium">
+                          {formatIDR(inv.amount)}
+                        </TableCell>
+                        <TableCell className="border-border border-r">
+                          <Badge className={getInvoiceStatusColor(inv.status)}>
+                            {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="border-border border-r text-sm text-muted-foreground">
+                          {format(inv.dueDate.toDate(), 'dd MMM yyyy', { locale: idLocale })}
+                        </TableCell>
+                        <TableCell className="flex items-center gap-2">
+                          {inv.status !== 'paid' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={async () => {
+                                await markPaid(inv.id, inv.amount);
+                                toast.success('Invoice marked as paid');
+                              }}
+                            >
+                              Mark Paid
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-red-500 hover:text-red-400"
+                            onClick={async () => {
+                              if (!confirm('Delete this invoice?')) return;
+                              await removeInvoice(inv.id);
+                              toast.success('Invoice deleted');
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Create Button */}
+              <div className="flex justify-end">
+                <Button size="sm" onClick={() => setInvoiceFormOpen(true)}>
+                  Create Invoice
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="details" className="mt-4">
@@ -312,6 +454,15 @@ export default function ProjectDetailPage({ params }: PageProps) {
         onSubmit={handleTaskSubmit}
         initialData={editingTask}
         defaultStatus={defaultTaskStatus}
+      />
+
+      {/* Invoice Form Dialog */}
+      <InvoiceForm
+        open={invoiceFormOpen}
+        onOpenChange={setInvoiceFormOpen}
+        onSubmit={handleCreateInvoice}
+        defaultClientId={project.clientId}
+        defaultProjectId={id}
       />
     </div>
   );
