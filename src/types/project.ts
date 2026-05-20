@@ -14,6 +14,7 @@ export interface Project {
   progress: number; // 0-100
   deadline?: Timestamp;
   budget?: number;
+  invoiceId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -27,4 +28,5 @@ export interface ProjectFormData {
   deadline?: Date;
   budget?: number;
   progress?: number;
+  invoiceId?: string;
 }

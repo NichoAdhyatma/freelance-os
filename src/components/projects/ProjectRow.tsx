@@ -50,11 +50,12 @@ interface ProjectRowProps {
   onAddNew: () => void;
   onNavigate: () => void;
   onAddClient: () => void;
+  onAddInvoice: (projectId: string) => void;
 }
 
 type CellKey = 'title' | 'client' | 'priority' | 'progress' | 'deadline';
 
-export function ProjectRow({ project, index, onSave, onDelete, onDuplicate, onAddNew, onNavigate, onAddClient }: ProjectRowProps) {
+export function ProjectRow({ project, index, onSave, onDelete, onDuplicate, onAddNew, onNavigate, onAddClient, onAddInvoice }: ProjectRowProps) {
   const { clients } = useClients();
   const [editingCell, setEditingCell] = useState<CellKey | null>(null);
 
