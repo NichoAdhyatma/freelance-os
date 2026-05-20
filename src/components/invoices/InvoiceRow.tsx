@@ -1,7 +1,6 @@
 'use client';
 
-import { ArrowRight, Copy, Plus, Trash2, ChevronDown, User, Download } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Copy, Download, MoreHorizontal, Pencil, Plus, Send, Trash2, User, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -10,10 +9,18 @@ import { id } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
+import { EditableCell } from '@/components/invoices/EditableCell';
 import { useProjects } from '@/hooks/useProjects';
 import { formatIDR } from '@/lib/utils';
 import type { Invoice, InvoiceFormData, InvoiceStatus } from '@/types/invoice';
@@ -29,7 +36,9 @@ interface InvoiceRowProps {
   onDuplicate: () => void;
   onAddNew: () => void;
   onAddClient: () => void;
-  onNavigate: () => void;
+  onDownloadPDF: () => void | Promise<void>;
+  onSendWhatsApp: () => void;
+  downloading?: boolean;
 }
 
 const STATUS_OPTIONS: { value: InvoiceStatus; label: string; color: string }[] = [
@@ -60,9 +69,10 @@ export function InvoiceRow({
   onDuplicate,
   onAddNew,
   onAddClient,
-  onNavigate,
+  onDownloadPDF,
+  onSendWhatsApp,
+  downloading,
 }: InvoiceRowProps) {
-  const router = useRouter();
   const dueDate = invoice.dueDate.toDate();
   const isOverdue = dueDate < new Date() && invoice.status !== 'paid' && invoice.status !== 'cancelled';
   const statusColor = STATUS_COLORS[invoice.status] ?? 'bg-muted text-muted-foreground';
@@ -78,13 +88,16 @@ export function InvoiceRow({
     const [open, setOpen] = useState(false);
     return (
       <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <PopoverPrimitive.Trigger
-          className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          onClick={() => setOpen(true)}
-        >
-          {displayClient ? clientDisplay(displayClient) : '—'}
-          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-        </PopoverPrimitive.Trigger>
+        <div className="group relative flex items-center">
+          <PopoverPrimitive.Trigger
+            className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            onClick={() => setOpen(true)}
+          >
+            {displayClient ? clientDisplay(displayClient) : '—'}
+            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+          </PopoverPrimitive.Trigger>
+          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+        </div>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
             <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
@@ -136,13 +149,16 @@ export function InvoiceRow({
 
     return (
       <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <PopoverPrimitive.Trigger
-          className="flex cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          onClick={() => setOpen(true)}
-        >
-          <span className="whitespace-nowrap">{selected?.title || '—'}</span>
-          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-        </PopoverPrimitive.Trigger>
+        <div className="group relative flex items-center">
+          <PopoverPrimitive.Trigger
+            className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            onClick={() => setOpen(true)}
+          >
+            <span className="whitespace-nowrap">{selected?.title || '—'}</span>
+            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+          </PopoverPrimitive.Trigger>
+          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+        </div>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
             <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
@@ -208,26 +224,32 @@ export function InvoiceRow({
         />
       </div>
     ) : (
-      <span
-        className="cursor-pointer whitespace-nowrap text-muted-foreground hover:text-foreground"
-        onClick={() => { setEditAmount(String(invoice.amount)); setEditingAmount(true); }}
-      >
-        {formatIDR(invoice.amount)}
-      </span>
+      <div className="group relative flex items-center">
+        <span
+          className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          onClick={() => { setEditAmount(String(invoice.amount)); setEditingAmount(true); }}
+        >
+          {formatIDR(invoice.amount)}
+        </span>
+        <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+      </div>
     );
 
   const DueDateCell = () => {
     const [open, setOpen] = useState(false);
     return (
       <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <PopoverPrimitive.Trigger
-          className="flex cursor-pointer items-center gap-1 text-sm hover:text-foreground"
-          onClick={() => setOpen(true)}
-        >
-          <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
-            {format(dueDate, 'dd MMM yyyy', { locale: id })}
-          </span>
-        </PopoverPrimitive.Trigger>
+        <div className="group relative flex items-center">
+          <PopoverPrimitive.Trigger
+            className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm hover:text-foreground hover:bg-accent/50"
+            onClick={() => setOpen(true)}
+          >
+            <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
+              {format(dueDate, 'dd MMM yyyy', { locale: id })}
+            </span>
+          </PopoverPrimitive.Trigger>
+          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+        </div>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
             <PopoverPrimitive.Popup className="rounded-lg border bg-popover p-2 shadow-md">
@@ -251,14 +273,17 @@ export function InvoiceRow({
     const [open, setOpen] = useState(false);
     return (
       <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <PopoverPrimitive.Trigger
-          className="cursor-pointer"
-          onClick={() => setOpen(true)}
-        >
-          <Badge className={statusColor} variant="outline">
-            {STATUS_OPTIONS.find((o) => o.value === invoice.status)?.label ?? invoice.status}
-          </Badge>
-        </PopoverPrimitive.Trigger>
+        <div className="group relative flex items-center">
+          <PopoverPrimitive.Trigger
+            className="flex cursor-pointer items-center px-2 py-1 -mx-2 rounded hover:bg-accent/50"
+            onClick={() => setOpen(true)}
+          >
+            <Badge className={statusColor} variant="outline">
+              {STATUS_OPTIONS.find((o) => o.value === invoice.status)?.label ?? invoice.status}
+            </Badge>
+          </PopoverPrimitive.Trigger>
+          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+        </div>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="start" className="z-50">
             <PopoverPrimitive.Popup className="flex flex-col rounded-lg border bg-popover p-1 shadow-md">
@@ -341,19 +366,41 @@ export function InvoiceRow({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            title="Download PDF"
-            onPointerDown={(e) => { e.preventDefault(); onNavigate(); }}
+            title="Send WhatsApp"
+            onClick={onSendWhatsApp}
           >
-            <Download className="h-3.5 w-3.5" />
+            <Send className="h-3.5 w-3.5 text-green-500" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onPointerDown={(e) => { e.preventDefault(); router.push(`/dashboard/finance/${invoice.id}`); }}
+            title="Download PDF"
+            disabled={downloading}
+            onClick={onDownloadPDF}
           >
-            <ArrowRight className="h-3.5 w-3.5" />
+            {downloading ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="bg-background hover:bg-accent flex h-7 w-7 items-center justify-center rounded-md border">
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onDuplicate}>
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </TableCell>
     </TableRow>

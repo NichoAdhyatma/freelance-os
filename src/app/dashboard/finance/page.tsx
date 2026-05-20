@@ -1,22 +1,20 @@
 'use client';
 
-import {
-  Copy,
-  Receipt,
-} from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Copy, Receipt } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCard,SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
 import { InvoiceRow } from '@/components/invoices/InvoiceRow';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { openContextMenu } from '@/components/shared/RowContextMenu';
+import { downloadInvoicePDF } from '@/lib/pdf/downloadInvoicePDF';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import {
@@ -41,7 +39,6 @@ const PAGE_SIZE = 10;
 export default function FinancePage() {
   setDashboardTitle('Finance');
 
-  const router = useRouter();
   const { invoices, loading, add, edit, remove } = useInvoices();
   const { clients } = useClients();
   const { projects } = useProjects();
@@ -163,6 +160,35 @@ export default function FinancePage() {
     }
   };
 
+  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
+
+  const handleDownloadPDF = async (invoice: typeof invoices[number]) => {
+    if (downloading[invoice.id]) return;
+    setDownloading((prev) => ({ ...prev, [invoice.id]: true }));
+    try {
+      const client = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) ?? null : null;
+      const project = invoice.projectId ? projects.find((p) => p.id === invoice.projectId) : null;
+      await downloadInvoicePDF({ invoice, client, projectTitle: project?.title });
+      toast.success('PDF downloaded');
+    } catch (err) {
+      console.error(err);
+      toast.error('Gagal generate PDF');
+    } finally {
+      setDownloading((prev) => ({ ...prev, [invoice.id]: false }));
+    }
+  };
+
+  const handleSendWhatsApp = (invoice: typeof invoices[number]) => {
+    const client = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) : null;
+    if (!client) { toast.error('Client tidak ditemukan.'); return; }
+    if (!client.whatsapp) { toast.error('Client ini belum memiliki nomor WhatsApp.'); return; }
+    const waNumber = client.whatsapp.replace(/\D/g, '');
+    const dueDate = invoice.dueDate.toDate();
+    const total = (invoice.amount ?? 0) + (invoice.tax ?? 0) - (invoice.discount ?? 0);
+    const message = `Halo ${client.name}! 👋\n\nBerikut invoice untuk pekerjaan yang telah diselesaikan:\n\n📄 *${invoice.invoiceNumber}*\n🏢 *${client.company || ''}*\n💰 *Total: ${formatIDR(total)}*\n📅 *Jatuh Tempo: ${format(dueDate, 'dd MMMM yyyy', { locale: id })}*\n\nMohon melakukan pembayaran sebelum jatuh tempo. Terima kasih! 🙏\n\n—\nDikirim via Freelancer OS`;
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   if (loading) {
     return <PageSkeleton showSearch={false} />;
   }
@@ -279,7 +305,9 @@ export default function FinancePage() {
                   onDuplicate={() => handleDuplicate(inv)}
                   onAddNew={() => { setPage(1); setAddingRow(true); }}
                   onAddClient={() => setAddingClientInline(true)}
-                  onNavigate={() => {}}
+                  onDownloadPDF={() => handleDownloadPDF(inv)}
+                  onSendWhatsApp={() => handleSendWhatsApp(inv)}
+                  downloading={downloading[inv.id]}
                 />
               ))}
             </TableBody>

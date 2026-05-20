@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Copy, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -121,12 +121,15 @@ export function ClientRow({
               onFocus={() => { wasFocusedRef.current = true; }}
           />
         ) : (
-          <span
-            className="block cursor-pointer font-medium hover:text-primary"
-            onClick={() => activate('name')}
-          >
-            {client.name}
-          </span>
+          <div className="group relative flex items-center">
+            <span
+              className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded font-medium hover:text-primary hover:bg-accent/50"
+              onClick={() => activate('name')}
+            >
+              {client.name}
+            </span>
+            <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+          </div>
         )}
       </TableCell>
 
@@ -150,12 +153,15 @@ export function ClientRow({
               onFocus={() => { wasFocusedRef.current = true; }}
           />
         ) : (
-          <span
-            className="cursor-pointer text-muted-foreground hover:text-foreground"
-            onClick={() => activate('company')}
-          >
-            {client.company || '—'}
-          </span>
+          <div className="group relative flex items-center">
+            <span
+              className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              onClick={() => activate('company')}
+            >
+              {client.company || '—'}
+            </span>
+            <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+          </div>
         )}
       </TableCell>
 
@@ -187,36 +193,39 @@ export function ClientRow({
             />
           </div>
         ) : (
-          <div
-            className="flex items-center gap-2"
-            onClick={() => activate('contact')}
-          >
-            {client.email && (
-              <a
-                href={`mailto:${client.email}`}
-                className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Mail className="h-3 w-3" />
-                <span className="max-w-[120px] truncate">{client.email}</span>
-              </a>
-            )}
-            {client.whatsapp && (
-              <a
-                href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-muted-foreground flex items-center text-xs hover:text-green-500"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span className="text-[10px]">WA</span>
-              </a>
-            )}
-            {!client.email && !client.whatsapp && (
-              <span className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                Click to add
-              </span>
-            )}
+          <div className="group relative flex items-center">
+            <div
+              className="flex items-center gap-2 px-2 py-1 -mx-2 rounded hover:bg-accent/50"
+              onClick={() => activate('contact')}
+            >
+              {client.email && (
+                <a
+                  href={`mailto:${client.email}`}
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Mail className="h-3 w-3" />
+                  <span className="max-w-[120px] truncate">{client.email}</span>
+                </a>
+              )}
+              {client.whatsapp && (
+                <a
+                  href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground flex items-center text-xs hover:text-green-500"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-[10px]">WA</span>
+                </a>
+              )}
+              {!client.email && !client.whatsapp && (
+                <span className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                  Click to add
+                </span>
+              )}
+            </div>
+            <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
           </div>
         )}
       </TableCell>

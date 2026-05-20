@@ -44,7 +44,6 @@ export async function createProject(data: ProjectFormData): Promise<string> {
     progress: 0,
     deadline: data.deadline ? Timestamp.fromDate(data.deadline) : null,
     budget: data.budget || null,
-    invoiceId: data.invoiceId || null,
     createdAt: now,
     updatedAt: now,
   });
@@ -65,7 +64,6 @@ export async function updateProject(id: string, data: Partial<ProjectFormData>):
   if (data.title !== undefined) updates.title = data.title;
   if (data.description !== undefined) updates.description = data.description;
   if ('clientId' in data) updates.clientId = data.clientId || null;
-  if ('invoiceId' in data) updates.invoiceId = data.invoiceId || null;
   if (data.status !== undefined) updates.status = data.status;
   if (data.priority !== undefined) updates.priority = data.priority;
   if (data.budget !== undefined) updates.budget = data.budget || null;

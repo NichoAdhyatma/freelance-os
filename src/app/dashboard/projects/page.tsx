@@ -10,7 +10,8 @@ import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
-import { ProjectAddRow,ProjectRow } from '@/components/projects/ProjectRow';
+import { ProjectAddRow, ProjectRow } from '@/components/projects/ProjectRow';
+import { QuickAddInvoiceSheet } from '@/components/invoices/QuickAddInvoiceSheet';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,9 @@ export default function ProjectsPage() {
 
   const [addingRow, setAddingRow] = useState(false);
   const [addingClientInline, setAddingClientInline] = useState(false);
+  const [addingInvoiceInline, setAddingInvoiceInline] = useState(false);
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('recent');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -117,6 +120,11 @@ export default function ProjectsPage() {
   const handleOpenNew = () => {
     setPendingClientId(null);
     setAddingRow(true);
+  };
+
+  const handleOpenAddInvoice = (projectId: string) => {
+    setPendingProjectId(projectId);
+    setAddingInvoiceInline(true);
   };
 
   const handleCancelAdd = () => {
@@ -276,6 +284,7 @@ export default function ProjectsPage() {
                   onAddNew={() => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
                   onNavigate={() => router.push(`/dashboard/projects/${project.id}`)}
                   onAddClient={() => setAddingClientInline(true)}
+                  onAddInvoice={(projectId) => handleOpenAddInvoice(projectId)}
                 />
               ))}
             </TableBody>
@@ -288,6 +297,25 @@ export default function ProjectsPage() {
             onCreated={(clientId) => {
               setPendingClientId(clientId);
               setAddingClientInline(false);
+            }}
+          />
+
+          {/* Quick Add Invoice Sheet */}
+          <QuickAddInvoiceSheet
+            open={addingInvoiceInline}
+            onOpenChange={(open) => {
+              setAddingInvoiceInline(open);
+              if (!open) setPendingProjectId(null);
+            }}
+            initialProjectId={pendingProjectId ?? undefined}
+            initialClientId={pendingProjectId ? projects.find((p) => p.id === pendingProjectId)?.clientId ?? undefined : undefined}
+            onCreated={(invoiceId) => {
+              setAddingInvoiceInline(false);
+              setPendingProjectId(null);
+              // Link invoice to project
+              if (pendingProjectId) {
+                editProject(pendingProjectId, { invoiceId });
+              }
             }}
           />
 
