@@ -1,5 +1,6 @@
 'use client';
 
+import { CommandPalette } from '@/components/shared/CommandPalette';
 import { Header } from '@/components/shared/Header';
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute';
 import { Sidebar } from '@/components/shared/Sidebar';
@@ -13,9 +14,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden">
             <Header />
-            <main className="bg-background flex-1 overflow-y-auto p-6">{children}</main>
+            <main className="bg-background flex-1 overflow-y-auto p-6">
+              {children}
+            </main>
           </div>
         </div>
+        <CommandPalette />
       </ContextMenuLayer>
     </ProtectedRoute>
   );

@@ -1,7 +1,6 @@
 'use client';
 
 import { Users } from 'lucide-react';
-import { Copy } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -13,7 +12,6 @@ import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import {
@@ -31,14 +29,14 @@ import { type ClientFormData } from '@/types/client';
 
 type SortField = 'recent' | 'name' | null;
 type SortDir = 'asc' | 'desc' | null;
+
 const PAGE_SIZE = 10;
 
 export default function ClientsPage() {
   setDashboardTitle('Clients');
 
   const router = useRouter();
-  const { clients, loading, addClient, editClient, removeClient, total } =
-    useClients();
+  const { clients, loading, addClient, editClient, removeClient, total } = useClients();
   const { projects } = useProjects();
 
   const [addingRow, setAddingRow] = useState(false);
@@ -50,7 +48,6 @@ export default function ClientsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
-  // Project count per client — must be before stats
   const clientProjectCount = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const p of projects) {
@@ -59,21 +56,15 @@ export default function ClientsPage() {
     return counts;
   }, [projects]);
 
-  // Stats
   const stats = useMemo(() => {
     const activeClients = clients.filter((c) => (clientProjectCount[c.id] || 0) > 0).length;
     return { total, activeClients };
   }, [clients, total, clientProjectCount]);
 
-  // Sort handler — cycles: asc → desc → clear
   const handleSort = (field: string) => {
     if (sortField === field) {
-      if (sortDir === 'asc') {
-        setSortDir('desc');
-      } else {
-        setSortField('recent');
-        setSortDir(null);
-      }
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortField('recent'); setSortDir(null); }
     } else {
       setSortField(field as SortField);
       setSortDir('asc');
@@ -119,10 +110,9 @@ export default function ClientsPage() {
 
   const handleDelete = async (id: string) => {
     const projCount = clientProjectCount[id] || 0;
-    const msg =
-      projCount > 0
-        ? `This client has ${projCount} project(s). Delete anyway?`
-        : 'Delete this client? This action cannot be undone.';
+    const msg = projCount > 0
+      ? `This client has ${projCount} project(s). Delete anyway?`
+      : 'Delete this client? This action cannot be undone.';
     if (!confirm(msg)) return;
     try {
       await removeClient(id);
@@ -158,61 +148,33 @@ export default function ClientsPage() {
     }
   };
 
-  if (loading) {
-    return <PageSkeleton />;
-  }
+  if (loading) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
       <SummaryCardGrid>
-        <SummaryCard
-          label="Total Clients"
-          value={stats.total}
-          sub="All time"
-          icon={<Users className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Active Clients"
-          value={stats.activeClients}
-          sub="Has projects"
-          subColor="green"
-          icon={<Users className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Total Invoices"
-          value="—"
-          sub="Via finance page"
-          subColor="default"
-          icon={<Users className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Total Projects"
-          value={projects.length}
-          sub="Across all clients"
-          subColor="default"
-          icon={<Users className="h-6 w-6" />}
-        />
+        <SummaryCard label="Total Clients" value={stats.total} sub="All time" icon={<Users className="h-5 w-5" />} />
+        <SummaryCard label="Active Clients" value={stats.activeClients} sub="Has projects" subColor="green" icon={<Users className="h-5 w-5" />} />
+        <SummaryCard label="Total Projects" value={projects.length} sub="Across all clients" subColor="default" icon={<Users className="h-5 w-5" />} />
+        <SummaryCard label="Total Invoices" value="—" sub="Via finance page" subColor="default" icon={<Users className="h-5 w-5" />} />
       </SummaryCardGrid>
 
-      {/* Search */}
-      <TableSearchBar
-        value={search}
-        onChange={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
-        placeholder="Search clients..."
-      />
+      {/* Search + Create */}
+      <div className="flex items-center justify-between gap-4">
+        <TableSearchBar
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search clients..."
+        />
+        <Button onClick={() => setAddingRow(true)} size="sm" className="shrink-0">
+          <Users className="h-4 w-4" />
+          New Client
+        </Button>
+      </div>
 
       {/* Filter Tabs */}
-      <Tabs
-        value={filter}
-        onValueChange={(v) => {
-          setFilter(v as 'all' | 'has_projects');
-          setPage(1);
-        }}
-      >
+      <Tabs value={filter} onValueChange={(v) => { setFilter(v as 'all' | 'has_projects'); setPage(1); }}>
         <TabsList>
           <TabsTrigger value="all">All ({clients.length})</TabsTrigger>
           <TabsTrigger value="has_projects">Has Projects ({hasProjectsCount})</TabsTrigger>
@@ -224,50 +186,32 @@ export default function ClientsPage() {
         <EmptyState
           variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No clients found' : 'No clients yet'}
-          description={
-            search
-              ? `Pencarian "${search}" tidak ditemukan.`
-              : 'Add your first client to start managing relationships'
-          }
+          description={search ? `Pencarian "${search}" tidak ditemukan.` : 'Add your first client to start managing relationships'}
           actionLabel={search ? 'Reset Filter' : 'Add Client'}
-          onAction={search ? () => { setSearch(''); setPage(1); } : () => { setAddingRow(true); }}
+          onAction={search ? () => { setSearch(''); setPage(1); } : () => setAddingRow(true)}
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <div
+          className="overflow-hidden rounded-xl border"
+          style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
+        >
           <Table>
             <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 border-r border-border select-none text-xs font-medium">
-                  #
-                </TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
-                  <span
-                    className="flex cursor-pointer items-center"
-                    onClick={() => handleSort('name')}
-                  >
-                    Name{' '}
-                    <SortIcon
-                      field="name"
-                      sortField={sortField}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
+              <TableRow style={{ borderColor: 'rgb(255 255 255 / 5%)' }}>
+                <TableHead className="select-none text-xs font-medium w-12 border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>#</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>
+                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('name')}>
+                    Name <SortIcon field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">Company</TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">Contact</TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
-                  Projects
-                </TableHead>
-                </TableRow>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Company</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Contact</TableHead>
+                <TableHead className="select-none text-xs font-medium" style={{ color: 'rgb(255 255 255 / 30%)' }}>Projects</TableHead>
+              </TableRow>
             </TableHeader>
             <TableBody>
               {addingRow && (
-                <ClientInlineRow
-                  mode="add"
-                  onSave={handleSubmitInline}
-                  onCancel={handleCancelAdd}
-                />
+                <ClientInlineRow mode="add" onSave={handleSubmitInline} onCancel={handleCancelAdd} />
               )}
               {paginated.map((client, idx) => (
                 <ClientRow
@@ -278,7 +222,7 @@ export default function ClientsPage() {
                   onSave={async (id, data) => { await editClient(id, data); }}
                   onDelete={() => handleDelete(client.id)}
                   onDuplicate={() => handleDuplicate(client)}
-                  onAddNew={() => { setPage(1); setAddingRow(true); }}
+                  onAddNew={() => setAddingRow(true)}
                   onNavigate={() => router.push(`/dashboard/clients/${client.id}`)}
                 />
               ))}
@@ -287,45 +231,21 @@ export default function ClientsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="border-border flex items-center justify-between border-t px-6 py-4">
-              <p className="text-muted-foreground text-sm">
-                {filtered.length === 0
-                  ? 'No results'
-                  : `Showing ${start}–${end} of ${filtered.length}`}
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid rgb(255 255 255 / 5%)' }}>
+              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 30%)' }}>
+                {filtered.length === 0 ? 'No results' : `Showing ${start}–${end} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  ← Prev
-                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <Button
-                    key={p}
-                    variant={p === currentPage ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </Button>
+                  <Button key={p} variant={p === currentPage ? 'default' : 'outline'} size="sm" onClick={() => setPage(p)}>{p}</Button>
                 ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next →
-                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next →</Button>
               </div>
             </div>
           )}
         </div>
       )}
-
-          </div>
+    </div>
   );
 }

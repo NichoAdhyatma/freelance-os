@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Receipt } from 'lucide-react';
+import { Receipt } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -34,6 +34,7 @@ import { formatIDR } from '@/lib/utils';
 type StatusFilter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
 type SortField = 'recent' | 'amount' | 'due' | null;
 type SortDir = 'asc' | 'desc' | null;
+
 const PAGE_SIZE = 10;
 
 export default function FinancePage() {
@@ -53,7 +54,6 @@ export default function FinancePage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
-  // Stats
   const stats = useMemo(() => {
     const totalRevenue = invoices
       .filter((i) => i.status === 'paid')
@@ -77,15 +77,10 @@ export default function FinancePage() {
     [invoices],
   );
 
-  // Sort handler — cycles: asc → desc → clear
   const handleSort = (field: string) => {
     if (sortField === field) {
-      if (sortDir === 'asc') {
-        setSortDir('desc');
-      } else {
-        setSortField('recent');
-        setSortDir(null);
-      }
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortField('recent'); setSortDir(null); }
     } else {
       setSortField(field as SortField);
       setSortDir('asc');
@@ -189,62 +184,33 @@ export default function FinancePage() {
     window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  if (loading) {
-    return <PageSkeleton showSearch={false} />;
-  }
+  if (loading) return <PageSkeleton showSearch={false} />;
 
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
       <SummaryCardGrid>
-        <SummaryCard
-          label="Total Revenue"
-          value={formatIDR(stats.totalRevenue)}
-          sub="Completed"
-          subColor="green"
-          icon={<Receipt className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Outstanding"
-          value={formatIDR(stats.outstanding)}
-          sub="Awaiting"
-          subColor="yellow"
-          icon={<Receipt className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Sent"
-          value={statusCounts.sent}
-          sub="In progress"
-          subColor="default"
-          icon={<Receipt className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Overdue"
-          value={stats.overdue}
-          sub="Needs action"
-          subColor="red"
-          icon={<Receipt className="h-6 w-6" />}
-        />
+        <SummaryCard label="Total Revenue" value={formatIDR(stats.totalRevenue)} sub="Completed" subColor="green" icon={<Receipt className="h-5 w-5" />} />
+        <SummaryCard label="Outstanding" value={formatIDR(stats.outstanding)} sub="Awaiting" subColor="yellow" icon={<Receipt className="h-5 w-5" />} />
+        <SummaryCard label="Sent" value={statusCounts.sent} sub="In progress" subColor="default" icon={<Receipt className="h-5 w-5" />} />
+        <SummaryCard label="Overdue" value={stats.overdue} sub="Needs action" subColor="red" icon={<Receipt className="h-5 w-5" />} />
       </SummaryCardGrid>
 
-      {/* Search */}
-      <TableSearchBar
-        value={search}
-        onChange={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
-        placeholder="Search invoices..."
-      />
+      {/* Search + Create */}
+      <div className="flex items-center justify-between gap-4">
+        <TableSearchBar
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search invoices..."
+        />
+        <Button onClick={() => setAddingRow(true)} size="sm" className="shrink-0">
+          <Receipt className="h-4 w-4" />
+          New Invoice
+        </Button>
+      </div>
 
       {/* Status Filter Tabs */}
-      <Tabs
-        value={filter}
-        onValueChange={(v) => {
-          setFilter(v as StatusFilter);
-          setPage(1);
-        }}
-      >
+      <Tabs value={filter} onValueChange={(v) => { setFilter(v as StatusFilter); setPage(1); }}>
         <TabsList>
           <TabsTrigger value="all">All ({statusCounts.total})</TabsTrigger>
           <TabsTrigger value="draft">Draft ({statusCounts.draft})</TabsTrigger>
@@ -259,39 +225,34 @@ export default function FinancePage() {
         <EmptyState
           variant={search ? 'no-results' : 'no-data'}
           title={search ? 'No invoices found' : 'No invoices yet'}
-          description={
-            search
-              ? `Pencarian "${search}" tidak ditemukan.`
-              : 'Create your first invoice to start tracking payments'
-          }
+          description={search ? `Pencarian "${search}" tidak ditemukan.` : 'Create your first invoice to start tracking payments'}
           actionLabel={search ? 'Reset Filter' : 'Create Invoice'}
-          onAction={search ? () => { setSearch(''); setPage(1); } : () => { setAddingRow(true); }}
+          onAction={search ? () => { setSearch(''); setPage(1); } : () => setAddingRow(true)}
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <div
+          className="overflow-hidden rounded-xl border"
+          style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
+        >
           <Table>
             <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground border-border w-12 border-r text-xs font-medium">#</TableHead>
-                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Invoice #</TableHead>
-                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Client</TableHead>
-                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Project</TableHead>
-                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium select-none">
+              <TableRow style={{ borderColor: 'rgb(255 255 255 / 5%)' }}>
+                <TableHead className="select-none text-xs font-medium w-12 border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>#</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Invoice #</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Client</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Project</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>
                   Amount <SortIcon field="amount" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium select-none">
+                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>
                   Due Date <SortIcon field="due" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="text-muted-foreground border-border border-r text-xs font-medium">Status</TableHead>
+                <TableHead className="select-none text-xs font-medium" style={{ color: 'rgb(255 255 255 / 30%)' }}>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {addingRow && (
-                <InvoiceInlineRow
-                  mode="add"
-                  onSave={handleSubmitInline}
-                  onCancel={handleCancelAdd}
-                />
+                <InvoiceInlineRow mode="add" onSave={handleSubmitInline} onCancel={handleCancelAdd} />
               )}
               {paginated.map((inv, idx) => (
                 <InvoiceRow
@@ -303,7 +264,7 @@ export default function FinancePage() {
                   onSave={async (id, data) => { await edit(id, data); }}
                   onDelete={() => handleDelete(inv.id)}
                   onDuplicate={() => handleDuplicate(inv)}
-                  onAddNew={() => { setPage(1); setAddingRow(true); }}
+                  onAddNew={() => setAddingRow(true)}
                   onAddClient={() => setAddingClientInline(true)}
                   onDownloadPDF={() => handleDownloadPDF(inv)}
                   onSendWhatsApp={() => handleSendWhatsApp(inv)}
@@ -313,56 +274,29 @@ export default function FinancePage() {
             </TableBody>
           </Table>
 
-          {/* Inline add client popup for table rows */}
           <InlineAddClientCard
             open={addingClientInline}
             onClose={() => setAddingClientInline(false)}
-            onCreated={(clientId) => {
-              setAddingClientInline(false);
-            }}
+            onCreated={(clientId) => setAddingClientInline(false)}
           />
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="border-border flex items-center justify-between border-t px-6 py-4">
-              <p className="text-muted-foreground text-sm">
-                {filtered.length === 0
-                  ? 'No results'
-                  : `Showing ${start}–${end} of ${filtered.length}`}
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid rgb(255 255 255 / 5%)' }}>
+              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 30%)' }}>
+                {filtered.length === 0 ? 'No results' : `Showing ${start}–${end} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  ← Prev
-                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</Button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <Button
-                    key={p}
-                    variant={p === currentPage ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </Button>
+                  <Button key={p} variant={p === currentPage ? 'default' : 'outline'} size="sm" onClick={() => setPage(p)}>{p}</Button>
                 ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next →
-                </Button>
+                <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next →</Button>
               </div>
             </div>
           )}
         </div>
       )}
-
-          </div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, FolderKanban, Plus } from 'lucide-react';
+import { FolderKanban, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -13,10 +13,16 @@ import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { ProjectAddRow, ProjectRow } from '@/components/projects/ProjectRow';
 import { QuickAddInvoiceSheet } from '@/components/invoices/QuickAddInvoiceSheet';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -63,7 +69,6 @@ export default function ProjectsPage() {
     return { total, active, done, overdue };
   }, [projects]);
 
-  // Sort handler — cycles: asc → desc → clear
   const handleSort = (field: string) => {
     if (sortField === field) {
       if (sortDir === 'asc') {
@@ -79,7 +84,6 @@ export default function ProjectsPage() {
     setPage(1);
   };
 
-  // Filtered + sorted + paginated
   const filtered = useMemo(() => {
     let result = projects;
 
@@ -88,9 +92,7 @@ export default function ProjectsPage() {
       result = result.filter(
         (p) =>
           p.title.toLowerCase().includes(q) ||
-          getClientById(p.clientId ?? '')
-            ?.name.toLowerCase()
-            .includes(q),
+          getClientById(p.clientId ?? '')?.name.toLowerCase().includes(q),
       );
     }
 
@@ -117,16 +119,6 @@ export default function ProjectsPage() {
   const start = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleOpenNew = () => {
-    setPendingClientId(null);
-    setAddingRow(true);
-  };
-
-  const handleOpenAddInvoice = (projectId: string) => {
-    setPendingProjectId(projectId);
-    setAddingInvoiceInline(true);
-  };
-
   const handleCancelAdd = () => {
     setAddingRow(false);
     setPendingClientId(null);
@@ -144,7 +136,7 @@ export default function ProjectsPage() {
 
   const handleDuplicate = async (project: typeof projects[number]) => {
     try {
-      const { title, clientId, priority, status } = project;
+      const { title, clientId, priority } = project;
       await addProject({
         title: `${title} (Copy)`,
         clientId: clientId || undefined,
@@ -178,47 +170,30 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-
       {/* Summary Stats */}
       <SummaryCardGrid>
-        <SummaryCard
-          label="Total Projects"
-          value={stats.total}
-          sub="All time"
-          icon={<FolderKanban className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Active"
-          value={stats.active}
-          sub="In progress"
-          subColor="yellow"
-          icon={<FolderKanban className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Completed"
-          value={stats.done}
-          sub="Done"
-          subColor="green"
-          icon={<FolderKanban className="h-6 w-6" />}
-        />
-        <SummaryCard
-          label="Overdue"
-          value={stats.overdue}
-          sub="Need attention"
-          subColor="red"
-          icon={<FolderKanban className="h-6 w-6" />}
-        />
+        <SummaryCard label="Total Projects" value={stats.total} sub="All time" icon={<FolderKanban className="h-5 w-5" />} />
+        <SummaryCard label="Active" value={stats.active} sub="In progress" subColor="yellow" icon={<FolderKanban className="h-5 w-5" />} />
+        <SummaryCard label="Completed" value={stats.done} sub="Done" subColor="green" icon={<FolderKanban className="h-5 w-5" />} />
+        <SummaryCard label="Overdue" value={stats.overdue} sub="Need attention" subColor="red" icon={<FolderKanban className="h-5 w-5" />} />
       </SummaryCardGrid>
 
-      {/* Search */}
-      <TableSearchBar
-        value={search}
-        onChange={(v) => {
-          setSearch(v);
-          setPage(1);
-        }}
-        placeholder="Search projects or clients..."
-      />
+      {/* Search + Create */}
+      <div className="flex items-center justify-between gap-4">
+        <TableSearchBar
+          value={search}
+          onChange={(v) => { setSearch(v); setPage(1); }}
+          placeholder="Search projects or clients..."
+        />
+        <Button
+          onClick={() => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
+          size="sm"
+          className="shrink-0"
+        >
+          <Plus className="h-4 w-4" />
+          New Project
+        </Button>
+      </div>
 
       {/* Table or Empty State */}
       {paginated.length === 0 && !addingRow ? (
@@ -234,31 +209,57 @@ export default function ProjectsPage() {
           onAction={search ? () => { setSearch(''); setPage(1); } : () => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border">
+        <div
+          className="overflow-hidden rounded-xl border"
+          style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
+        >
           <Table>
             <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground w-12 select-none border-r border-border text-xs font-medium">
+              <TableRow style={{ borderColor: 'rgb(255 255 255 / 5%)' }}>
+                <TableHead
+                  className="select-none text-xs font-medium w-12 border-r"
+                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                >
                   #
                 </TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
+                <TableHead
+                  className="select-none text-xs font-medium border-r"
+                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('title')}>
                     Title <SortIcon field="title" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
+                <TableHead
+                  className="select-none text-xs font-medium border-r"
+                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                >
                   Client
                 </TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
+                <TableHead
+                  className="select-none text-xs font-medium border-r"
+                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                >
                   Priority
                 </TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">Progress</TableHead>
-                <TableHead className="text-muted-foreground border-r border-border select-none text-xs font-medium">
+                <TableHead
+                  className="select-none text-xs font-medium border-r"
+                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                >
+                  Progress
+                </TableHead>
+                <TableHead
+                  className="select-none text-xs font-medium border-r"
+                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('deadline')}>
                     Deadline <SortIcon field="deadline" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="text-muted-foreground w-20 select-none text-xs font-medium">
+                <TableHead
+                  className="select-none text-xs font-medium w-20"
+                  style={{ color: 'rgb(255 255 255 / 30%)' }}
+                >
                   Actions
                 </TableHead>
               </TableRow>
@@ -284,13 +285,12 @@ export default function ProjectsPage() {
                   onAddNew={() => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
                   onNavigate={() => router.push(`/dashboard/projects/${project.id}`)}
                   onAddClient={() => setAddingClientInline(true)}
-                  onAddInvoice={(projectId) => handleOpenAddInvoice(projectId)}
+                  onAddInvoice={(projectId) => { setPendingProjectId(projectId); setAddingInvoiceInline(true); }}
                 />
               ))}
             </TableBody>
           </Table>
 
-          {/* Inline add client popup for table rows */}
           <InlineAddClientCard
             open={addingClientInline}
             onClose={() => setAddingClientInline(false)}
@@ -300,7 +300,6 @@ export default function ProjectsPage() {
             }}
           />
 
-          {/* Quick Add Invoice Sheet */}
           <QuickAddInvoiceSheet
             open={addingInvoiceInline}
             onOpenChange={(open) => {
@@ -312,17 +311,17 @@ export default function ProjectsPage() {
             onCreated={(invoiceId) => {
               setAddingInvoiceInline(false);
               setPendingProjectId(null);
-              // Link invoice to project
-              if (pendingProjectId) {
-                editProject(pendingProjectId, { invoiceId });
-              }
+              if (pendingProjectId) editProject(pendingProjectId, { invoiceId });
             }}
           />
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="border-border flex items-center justify-between border-t px-6 py-4">
-              <p className="text-muted-foreground text-sm">
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderTop: '1px solid rgb(255 255 255 / 5%)' }}
+            >
+              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 30%)' }}>
                 {filtered.length === 0 ? 'No results' : `Showing ${start}–${Math.min(start + PAGE_SIZE - 1, filtered.length)} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">

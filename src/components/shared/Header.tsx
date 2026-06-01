@@ -1,11 +1,9 @@
 'use client';
 
-import { Bell, CreditCard, LogOut, User } from 'lucide-react';
-import Link from 'next/link';
+import { LogOut, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,99 +21,107 @@ export function Header() {
   const title = useDashboardTitle();
   const router = useRouter();
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan) {
-      case 'agency':
-        return 'bg-gradient-to-r from-purple-500 to-pink-500';
-      case 'pro':
-        return 'bg-gradient-to-r from-blue-500 to-cyan-500';
-      default:
-        return 'bg-muted';
-    }
-  };
+  const getInitials = (name: string) =>
+    name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   const handleSignOut = async () => {
     await signOut();
     router.push('/login');
   };
 
+  const PLAN_COLORS: Record<string, string> = {
+    agency: 'oklch(0.6 0.18 320)',
+    pro: 'var(--status-info)',
+  };
+
   return (
-    <header className="border-border bg-card flex h-16 items-center justify-between border-b px-6">
+    <header
+      className="flex h-14 items-center justify-between px-6 border-b border-[var(--border-subtle)] bg-[var(--surface-base)]"
+    >
       <div className="flex items-center gap-4">
         {title && (
-          <div className="flex flex-col">
-            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-            <p className="text-muted-foreground text-xs">Dashboard / {title}</p>
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">{title}</h1>
+            <p className="text-xs text-[var(--text-tertiary)]">Freelancer OS</p>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Notifications */}
-        <Link
-          href="/dashboard/notifications"
-          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground relative flex h-9 w-9 items-center justify-center rounded-lg"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-medium">
-            3
-          </span>
-        </Link>
-
-        {/* User Menu */}
+      <div className="flex items-center gap-2">
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full">
-            <Avatar className="h-10 w-10">
+          <DropdownMenuTrigger
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            style={{ border: '2px solid var(--border-default)' }}
+          >
+            <Avatar className="h-9 w-9">
               <AvatarImage src={userProfile?.avatar} alt={userProfile?.name} />
-              <AvatarFallback>
+              <AvatarFallback
+                className="text-xs font-semibold"
+                style={{ background: 'var(--accent-muted)', color: 'var(--primary)' }}
+              >
                 {userProfile?.name ? getInitials(userProfile.name) : 'U'}
               </AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end">
+          <DropdownMenuContent
+            align="end"
+            className="w-64 border border-[var(--border-default)]"
+            style={{ background: 'var(--surface-raised)', color: 'var(--text-primary)' }}
+          >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm leading-none font-medium">{userProfile?.name || 'User'}</p>
-                  <p className="text-muted-foreground text-xs leading-none">{user?.email}</p>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={userProfile?.avatar} alt={userProfile?.name} />
+                    <AvatarFallback
+                      className="text-xs font-semibold"
+                      style={{ background: 'var(--accent-muted)', color: 'var(--primary)' }}
+                    >
+                      {userProfile?.name ? getInitials(userProfile.name) : 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col space-y-0.5">
+                    <p className="text-sm font-medium leading-none">{userProfile?.name || 'User'}</p>
+                    <p className="text-xs leading-none text-[var(--text-tertiary)]">{user?.email}</p>
+                    {userProfile?.plan && userProfile.plan !== 'free' && (
+                      <span
+                        className="mt-1 inline-block w-fit rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide border"
+                        style={{
+                          background: PLAN_COLORS[userProfile.plan] + '20',
+                          color: PLAN_COLORS[userProfile.plan],
+                          borderColor: PLAN_COLORS[userProfile.plan] + '30',
+                        }}
+                      >
+                        {userProfile.plan.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
-              <User className="mr-2 h-4 w-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <CreditCard className="mr-2 h-4 w-4" />
-              Billing
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
-            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={() => router.push('/dashboard/settings')}
+                className="cursor-pointer transition-colors hover:bg-[var(--surface-hover)] text-[var(--text-secondary)]"
+              >
+                <User className="mr-2 h-4 w-4" />
+                Profile & Settings
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator className="bg-[var(--border-subtle)]" />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="cursor-pointer transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: 'var(--status-danger)' }}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Plan Badge */}
-        {userProfile?.plan && userProfile.plan !== 'free' && (
-          <Badge
-            variant="secondary"
-            className={`${getPlanBadgeColor(userProfile.plan)} border-0 text-white`}
-          >
-            {userProfile.plan.toUpperCase()}
-          </Badge>
-        )}
       </div>
     </header>
   );

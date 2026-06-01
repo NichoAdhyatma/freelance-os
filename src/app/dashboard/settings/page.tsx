@@ -2,15 +2,17 @@
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { ProfileForm } from '@/components/settings/ProfileForm';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatIDR } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const PLAN_LABELS: Record<string, string> = {
-  free: 'Free',
   pro: 'Pro',
   agency: 'Agency',
+};
+
+const PLAN_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  agency: { bg: 'oklch(0.6 0.18 320 / 15%)', color: 'oklch(0.6 0.18 320)', border: 'oklch(0.6 0.18 320 / 30%)' },
+  pro: { bg: 'oklch(0.65 0.14 220 / 15%)', color: 'oklch(0.65 0.14 220)', border: 'oklch(0.65 0.14 220 / 30%)' },
 };
 
 export default function SettingsPage() {
@@ -18,70 +20,78 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl space-y-6">
-        <Skeleton className="h-40 w-full rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-xl" />
+      <div className="space-y-4">
+        <div className="h-40 rounded-xl" style={{ background: 'oklch(0.16 0.015 265)', border: '1px solid rgb(255 255 255 / 6%)' }} />
+        <div className="h-40 rounded-xl" style={{ background: 'oklch(0.16 0.015 265)', border: '1px solid rgb(255 255 255 / 6%)' }} />
       </div>
     );
   }
 
-  const planBadgeClass =
-    userProfile?.plan === 'agency'
-      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-      : userProfile?.plan === 'pro'
-        ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
-        : 'bg-muted text-muted-foreground';
+  const planStyle = userProfile?.plan ? PLAN_STYLES[userProfile.plan] : null;
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6 max-w-2xl">
       {/* Profile section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Profil</CardTitle>
-          <CardDescription>Informasi yang ditampilkan di akun kamu</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div
+        className="rounded-xl border overflow-hidden"
+        style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
+      >
+        <div
+          className="px-6 py-4"
+          style={{ borderBottom: '1px solid rgb(255 255 255 / 5%)' }}
+        >
+          <h2 className="text-sm font-semibold" style={{ color: 'oklch(0.97 0 0)' }}>Profile</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'rgb(255 255 255 / 30%)' }}>Account information displayed on your profile</p>
+        </div>
+        <div className="p-6">
           <ProfileForm />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Account info section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Akun</CardTitle>
-          <CardDescription>Informasi akun — tidak dapat diubah</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div
+        className="rounded-xl border overflow-hidden"
+        style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
+      >
+        <div
+          className="px-6 py-4"
+          style={{ borderBottom: '1px solid rgb(255 255 255 / 5%)' }}
+        >
+          <h2 className="text-sm font-semibold" style={{ color: 'oklch(0.97 0 0)' }}>Account</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'rgb(255 255 255 / 30%)' }}>Account details — cannot be modified</p>
+        </div>
+        <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Email</p>
-            <p className="text-sm font-medium">{user?.email ?? '—'}</p>
+            <p className="text-sm" style={{ color: 'rgb(255 255 255 / 40%)' }}>Email</p>
+            <p className="text-sm font-medium" style={{ color: 'oklch(0.97 0 0)' }}>{user?.email ?? '—'}</p>
           </div>
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Plan</p>
-            <Badge className={`${planBadgeClass} border-0`}>
-              {PLAN_LABELS[userProfile?.plan ?? 'free']}
-            </Badge>
-          </div>
+          {userProfile?.plan && planStyle && (
+            <div className="flex items-center justify-between">
+              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 40%)' }}>Plan</p>
+              <span
+                className="inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold tracking-wide"
+                style={{ background: planStyle.bg, color: planStyle.color, border: `1px solid ${planStyle.border}` }}
+              >
+                {PLAN_LABELS[userProfile.plan] ?? userProfile.plan}
+              </span>
+            </div>
+          )}
           {userProfile?.licenseKey && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">License Key</p>
-              <p className="font-mono text-xs font-medium">{userProfile.licenseKey}</p>
+              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 40%)' }}>License Key</p>
+              <p className="font-mono text-xs font-medium" style={{ color: 'rgb(255 255 255 / 50%)' }}>{userProfile.licenseKey}</p>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Member Sejak</p>
-            <p className="text-sm font-medium">
+            <p className="text-sm" style={{ color: 'rgb(255 255 255 / 40%)' }}>Member Since</p>
+            <p className="text-sm font-medium" style={{ color: 'oklch(0.97 0 0)' }}>
               {userProfile?.createdAt
-                ? new Date(userProfile.createdAt.toDate()).toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })
+                ? format(userProfile.createdAt.toDate(), 'dd MMMM yyyy', { locale: undefined as any })
                 : '—'}
             </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

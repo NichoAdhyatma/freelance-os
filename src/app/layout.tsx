@@ -28,10 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
-    >
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} dark h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <AuthProvider>
           <TooltipProvider>
