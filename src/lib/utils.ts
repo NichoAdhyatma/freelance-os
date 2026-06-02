@@ -24,22 +24,6 @@ export function isValidEmail(email: string): boolean {
 
 // ─── Avatar helpers ───────────────────────────────────────────────────────────
 
-export function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const colors = [
-    'bg-[var(--status-info-bg)] text-[var(--status-info)]',
-    'bg-purple-500/15 text-purple-400',
-    'bg-[var(--status-success-bg)] text-[var(--status-success)]',
-    'bg-[var(--status-warning-bg)] text-[var(--status-warning)]',
-    'bg-pink-500/15 text-pink-400',
-    'bg-blue-500/15 text-blue-400',
-  ];
-  return colors[Math.abs(hash) % colors.length];
-}
-
 export function getInitials(name: string): string {
   return name
     .split(' ')
