@@ -109,7 +109,7 @@ export function statusStyle(config: Record<string, StatusStyle>, key: string) {
 
 import type React from 'react';
 
-interface StatusStyle {
+export interface StatusStyle {
   color: string;
   bg: string;
   borderColor: string;
