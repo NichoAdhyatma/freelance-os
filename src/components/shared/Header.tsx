@@ -30,7 +30,7 @@ export function Header() {
   };
 
   const PLAN_COLORS: Record<string, string> = {
-    agency: 'oklch(0.6 0.18 320)',
+    agency: 'var(--status-info)',
     pro: 'var(--status-info)',
   };
 

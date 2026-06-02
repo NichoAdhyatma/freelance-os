@@ -209,56 +209,46 @@ export default function ProjectsPage() {
           onAction={search ? () => { setSearch(''); setPage(1); } : () => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
         />
       ) : (
-        <div
-          className="overflow-hidden rounded-xl border"
-          style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
-        >
+        <div className="overflow-hidden rounded-xl border border-(--border-default) bg-(--surface-raised)">
           <Table>
             <TableHeader>
-              <TableRow style={{ borderColor: 'rgb(255 255 255 / 5%)' }}>
+              <TableRow className="border-[var(--border-default)]">
                 <TableHead
-                  className="select-none text-xs font-medium w-12 border-r"
-                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium w-12 border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   #
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r"
-                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('title')}>
                     Title <SortIcon field="title" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r"
-                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   Client
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r"
-                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   Priority
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r"
-                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   Progress
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r"
-                  style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('deadline')}>
                     Deadline <SortIcon field="deadline" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium w-20"
-                  style={{ color: 'rgb(255 255 255 / 30%)' }}
+                  className="select-none text-xs font-medium w-20 text-[var(--text-tertiary)]"
                 >
                   Actions
                 </TableHead>
@@ -318,10 +308,9 @@ export default function ProjectsPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{ borderTop: '1px solid rgb(255 255 255 / 5%)' }}
+              className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-default)]"
             >
-              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 30%)' }}>
+              <p className="text-sm text-[var(--text-tertiary)]">
                 {filtered.length === 0 ? 'No results' : `Showing ${start}–${Math.min(start + PAGE_SIZE - 1, filtered.length)} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">

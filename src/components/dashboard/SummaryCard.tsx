@@ -38,7 +38,7 @@ export function SummaryCard({
       <div
         className="absolute inset-0 rounded-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none"
         style={{
-          boxShadow: 'inset 0 0 0 1px var(--primary), 0 4px 20px oklch(0.82 0.12 75 / 8%)',
+          boxShadow: 'inset 0 0 0 1px var(--primary), 0 4px 20px var(--primary-muted)',
         }}
       />
 
