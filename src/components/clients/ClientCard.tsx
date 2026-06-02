@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useInvoices } from '@/hooks/useInvoices';
+import { getAvatarStyle } from '@/lib/tokens';
 import { type Client } from '@/types/client';
 
 interface ClientCardProps {
@@ -52,23 +53,6 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-const AVATAR_COLORS = [
-  'bg-blue-500/10 text-blue-500',
-  'bg-purple-500/10 text-purple-500',
-  'bg-green-500/10 text-green-500',
-  'bg-orange-500/10 text-orange-500',
-  'bg-pink-500/10 text-pink-500',
-  'bg-teal-500/10 text-teal-500',
-];
-
-function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
 export function ClientCard({
   client,
   projectCount = 0,
@@ -92,7 +76,7 @@ export function ClientCard({
   }, [client.email]);
 
   const initials = getInitials(client.name);
-  const avatarColor = getAvatarColor(client.name);
+  const avatarStyle = getAvatarStyle(client.name);
 
   return (
     <Card
@@ -102,7 +86,7 @@ export function ClientCard({
       <CardContent className="flex flex-col gap-4 p-5">
         {/* Header: Avatar + Name + Company */}
         <div className="flex items-start gap-3">
-          <Avatar className={`h-10 w-10 shrink-0 ${avatarColor}`}>
+          <Avatar className="h-10 w-10 shrink-0" style={{ color: avatarStyle.color, background: avatarStyle.bg }}>
             <AvatarFallback className="text-sm font-semibold">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">

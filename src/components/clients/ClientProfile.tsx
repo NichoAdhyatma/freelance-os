@@ -34,6 +34,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getAvatarStyle } from '@/lib/tokens';
 import { type Client } from '@/types/client';
 import { type Invoice, type InvoiceStatus } from '@/types/invoice';
 import { type Project } from '@/types/project';
@@ -47,23 +48,6 @@ interface ClientProfileProps {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const AVATAR_COLORS = [
-  'bg-blue-500/10 text-blue-500',
-  'bg-purple-500/10 text-purple-500',
-  'bg-green-500/10 text-green-500',
-  'bg-orange-500/10 text-orange-500',
-  'bg-pink-500/10 text-pink-500',
-  'bg-teal-500/10 text-teal-500',
-];
-
-function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 function getInitials(name: string): string {
   return name
@@ -162,7 +146,7 @@ export function ClientProfile({
 
   // ─── Render ────────────────────────────────────────────────────────────────
   const initials = getInitials(client.name);
-  const avatarColor = getAvatarColor(client.name);
+  const avatarStyle = getAvatarStyle(client.name);
 
   return (
     <>
@@ -170,7 +154,7 @@ export function ClientProfile({
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-4">
-            <Avatar className={`h-16 w-16 shrink-0 ${avatarColor}`}>
+            <Avatar className="h-16 w-16 shrink-0" style={{ color: avatarStyle.color, background: avatarStyle.bg }}>
               <AvatarFallback className="text-xl font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div>

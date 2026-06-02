@@ -1,0 +1,33 @@
+<h2>Design System Audit — Current State</h2>
+<p class="subtitle">Here's what I found in your codebase. What should we focus on improving first?</p>
+
+<div class="options">
+  <div class="option" data-choice="tokens" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Design Tokens & CSS Variables</h3>
+      <p>Centralize duplicate status colors, consolidate hardcoded oklch values, standardize semantic tokens across all components</p>
+    </div>
+  </div>
+  <div class="option" data-choice="typography" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Typography & Visual Hierarchy</h3>
+      <p>Add heading font variant, establish type scale, differentiate body/heading/mono styles, add reading line-height</p>
+    </div>
+  </div>
+  <div class="option" data-choice="components" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Component Consistency</h3>
+      <p>Build StatusBadge, StatusBadgeGroup components, standardize all status styling to use tokens, audit card/sheet patterns</p>
+    </div>
+  </div>
+  <div class="option" data-choice="animation" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Motion & Animation</h3>
+      <p>Define entrance animations, page transitions, micro-interactions, loading states — consistent easing and duration tokens</p>
+    </div>
+  </div>
+</div>

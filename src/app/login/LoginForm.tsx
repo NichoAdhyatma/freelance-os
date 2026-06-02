@@ -41,8 +41,8 @@ function GeometricArt() {
       </div>
 
       <div className="absolute bottom-16 left-4">
-        <div className="h-20 w-px bg-gradient-to-b from-amber-500/40 to-transparent" />
-        <div className="ml-4 mt-2 h-px w-10 bg-gradient-to-r from-amber-500/20 to-transparent" />
+        <div className="h-20 w-px bg-linear-to-b from-amber-500/40 to-transparent" />
+        <div className="ml-4 mt-2 h-px w-10 bg-linear-to-r from-amber-500/20 to-transparent" />
       </div>
 
       {/* Bottom badge */}
@@ -129,7 +129,7 @@ export default function LoginForm() {
 
       {/* Right panel — form */}
       <div className="flex w-full flex-col justify-center px-8 lg:w-1/2">
-        <div className="mx-auto w-full max-w-[400px] space-y-10">
+        <div className="mx-auto w-full max-w-100 space-y-10">
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 lg:hidden">
@@ -159,7 +159,7 @@ export default function LoginForm() {
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className="text-white/60 data-[focus]:text-white transition-colors"
+                className="text-white/60 data-focus:text-white transition-colors"
               >
                 Email address
               </Label>
@@ -174,10 +174,10 @@ export default function LoginForm() {
                   onBlur={() => setFocusedField(null)}
                   required
                   disabled={loading}
-                  className="h-11 bg-white/5 text-white placeholder:text-white/20 border-white/10 focus:border-amber-500/60 focus:bg-white/5 focus:ring-amber-500/20 data-[focus]:border-amber-500/60 data-[focus]:bg-white/5 data-[focus]:ring-amber-500/20 data-[invalid]:border-red-500/40 data-[invalid]:ring-red-500/20"
+                  className="h-11 bg-white/5 text-white placeholder:text-white/20 border-white/10 focus:border-amber-500/60 focus:bg-white/5 focus:ring-amber-500/20 data-focus:border-amber-500/60 data-focus:bg-white/5 data-focus:ring-amber-500/20 data-invalid:border-red-500/40 data-invalid:ring-red-500/20"
                 />
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-0 transition-opacity data-[focus=true]:opacity-60"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-amber-400 to-transparent opacity-0 transition-opacity data-[focus=true]:opacity-60"
                   style={{ left: '8px', right: '8px' }}
                 />
               </div>
@@ -188,7 +188,7 @@ export default function LoginForm() {
               <div className="flex items-center justify-between">
                 <Label
                   htmlFor="password"
-                  className="text-white/60 data-[focus]:text-white transition-colors"
+                  className="text-white/60 data-focus:text-white transition-colors"
                 >
                   Password
                 </Label>
@@ -210,7 +210,7 @@ export default function LoginForm() {
                   onBlur={() => setFocusedField(null)}
                   required
                   disabled={loading}
-                  className="h-11 pr-10 bg-white/5 text-white placeholder:text-white/20 border-white/10 focus:border-amber-500/60 focus:bg-white/5 focus:ring-amber-500/20 data-[focus]:border-amber-500/60 data-[focus]:bg-white/5 data-[focus]:ring-amber-500/20 data-[invalid]:border-red-500/40 data-[invalid]:ring-red-500/20"
+                  className="h-11 pr-10 bg-white/5 text-white placeholder:text-white/20 border-white/10 focus:border-amber-500/60 focus:bg-white/5 focus:ring-amber-500/20 data-focus:border-amber-500/60 data-focus:bg-white/5 data-focus:ring-amber-500/20 data-invalid:border-red-500/40 data-invalid:ring-red-500/20"
                 />
                 <button
                   type="button"
@@ -225,7 +225,7 @@ export default function LoginForm() {
                   )}
                 </button>
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-0 transition-opacity data-[focus=true]:opacity-60"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-amber-400 to-transparent opacity-0 transition-opacity data-[focus=true]:opacity-60"
                   style={{ left: '8px', right: '8px' }}
                 />
               </div>

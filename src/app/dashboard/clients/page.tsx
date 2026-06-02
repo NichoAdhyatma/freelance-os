@@ -191,22 +191,19 @@ export default function ClientsPage() {
           onAction={search ? () => { setSearch(''); setPage(1); } : () => setAddingRow(true)}
         />
       ) : (
-        <div
-          className="overflow-hidden rounded-xl border"
-          style={{ background: 'oklch(0.16 0.015 265)', borderColor: 'rgb(255 255 255 / 6%)' }}
-        >
+        <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)]">
           <Table>
             <TableHeader>
-              <TableRow style={{ borderColor: 'rgb(255 255 255 / 5%)' }}>
-                <TableHead className="select-none text-xs font-medium w-12 border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>#</TableHead>
-                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>
+              <TableRow className="border-[var(--border-default)]">
+                <TableHead className="select-none text-xs font-medium w-12 border-r border-[var(--border-default)] text-[var(--text-tertiary)]">#</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('name')}>
                     Name <SortIcon field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Company</TableHead>
-                <TableHead className="select-none text-xs font-medium border-r" style={{ borderColor: 'rgb(255 255 255 / 5%)', color: 'rgb(255 255 255 / 30%)' }}>Contact</TableHead>
-                <TableHead className="select-none text-xs font-medium" style={{ color: 'rgb(255 255 255 / 30%)' }}>Projects</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">Company</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">Contact</TableHead>
+                <TableHead className="select-none text-xs font-medium text-[var(--text-tertiary)]">Projects</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -231,8 +228,8 @@ export default function ClientsPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-6 py-4" style={{ borderTop: '1px solid rgb(255 255 255 / 5%)' }}>
-              <p className="text-sm" style={{ color: 'rgb(255 255 255 / 30%)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-default)]">
+              <p className="text-sm text-[var(--text-tertiary)]">
                 {filtered.length === 0 ? 'No results' : `Showing ${start}–${end} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">
