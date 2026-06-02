@@ -1,14 +1,14 @@
 'use client';
 
-import { ArrowRight, CalendarIcon, Check, ChevronDown, Copy, ExternalLink, Pencil, Plus, Trash2, User, X } from 'lucide-react';
+import { ArrowRight, CalendarIcon, Check, ChevronDown, Copy, ExternalLink, FileText, Pencil, Plus, Trash2, User, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
-import { FileText } from 'lucide-react';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
+import { getStatusStyle, PRIORITY_CONFIG, PRIORITY_LABELS } from '@/lib/tokens';
 import type { Project, ProjectFormData, ProjectPriority } from '@/types/project';
 
 const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
@@ -28,16 +29,6 @@ const PRIORITY_OPTIONS: { value: ProjectPriority; label: string }[] = [
   { value: 'high', label: 'High' },
   { value: 'urgent', label: 'Urgent' },
 ];
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent',
-};
-const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  medium: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  high: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
-};
 
 // ── Display row with per-cell click-to-edit ──────────────────────────────────
 
@@ -201,24 +192,30 @@ export function ProjectRow({ project, index, onSave, onDelete, onDuplicate, onAd
             className="flex cursor-pointer items-center px-2 py-1 -mx-2 rounded hover:bg-accent/50"
             onClick={() => setOpen(true)}
           >
-            <Badge className={PRIORITY_COLORS[project.priority] ?? PRIORITY_COLORS.medium}>
-              {PRIORITY_LABELS[project.priority]}
-            </Badge>
+            <StatusBadge
+                  config={PRIORITY_CONFIG}
+                  status={project.priority}
+                  label={PRIORITY_LABELS[project.priority as keyof typeof PRIORITY_LABELS]}
+                  size="sm"
+                />
           </PopoverPrimitive.Trigger>
           <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
           <PopoverPrimitive.Portal>
             <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
               <PopoverPrimitive.Popup className="flex flex-col rounded-lg border bg-popover p-1 shadow-md">
-                {PRIORITY_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted"
-                    onClick={() => { setOpen(false); saveCell('priority', { priority: o.value as ProjectPriority }); }}
-                  >
-                    <span className={`h-2 w-2 rounded-full ${PRIORITY_COLORS[o.value]?.replace('bg-', '').replace('/10', '').replace('text-', 'bg-').replace('border-', 'border-').split(' ')[0] ?? 'bg-zinc-400'}`} />
-                    {o.label}
-                  </button>
-                ))}
+                {PRIORITY_OPTIONS.map((o) => {
+                  const dotStyle = getStatusStyle(PRIORITY_CONFIG, o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted"
+                      onClick={() => { setOpen(false); saveCell('priority', { priority: o.value as ProjectPriority }); }}
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotStyle.style?.background }} />
+                      {o.label}
+                    </button>
+                  );
+                })}
               </PopoverPrimitive.Popup>
             </PopoverPrimitive.Positioner>
           </PopoverPrimitive.Portal>

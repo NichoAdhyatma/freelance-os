@@ -17,11 +17,19 @@ import { useRef, useState } from 'react';
 import { use } from 'react';
 import { toast } from 'sonner';
 
+import { StatusBadge } from '@/components/ui/status-badge';
+import {
+  PROJECT_STATUS_CONFIG,
+  PROJECT_STATUS_LABELS,
+  PRIORITY_CONFIG,
+  PRIORITY_LABELS,
+  INVOICE_STATUS_CONFIG,
+  INVOICE_STATUS_LABELS,
+} from '@/lib/tokens';
 import { InvoiceForm } from '@/components/invoices/InvoiceForm';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { TaskForm } from '@/components/projects/TaskForm';
 import { TaskKanban, type TaskKanbanHandle } from '@/components/projects/TaskKanban';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -42,36 +50,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { formatIDR } from '@/lib/utils';
 import { setDashboardTitle } from '@/app/dashboard/_context';
-import type { ProjectPriority, ProjectStatus } from '@/types/project';
 import { type Task, type TaskFormData } from '@/types/task';
-
-const STATUS_LABELS: Record<ProjectStatus, string> = {
-  backlog: 'Backlog',
-  in_progress: 'In Progress',
-  review: 'Review',
-  done: 'Done',
-};
-
-const PRIORITY_LABELS: Record<ProjectPriority, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
-};
-
-const STATUS_COLORS: Record<ProjectStatus, string> = {
-  backlog: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  in_progress: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  review: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  done: 'bg-green-500/10 text-green-400 border-green-500/20',
-};
-
-const PRIORITY_COLORS: Record<ProjectPriority, string> = {
-  low: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-  medium: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  high: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
-};
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -137,17 +116,9 @@ export default function ProjectDetailPage({ params }: PageProps) {
     toast.success('Invoice created');
   };
 
-  const getInvoiceStatusColor = (status: string): string => {
-    const colors: Record<string, string> = {
-      draft: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-      sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-      paid: 'bg-green-500/10 text-green-400 border-green-500/20',
-      overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-      cancelled: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-    };
-    return colors[status] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20';
-  };
+  // Invoice status badge
+  const getInvoiceLabel = (status: string): string =>
+    INVOICE_STATUS_LABELS[status as keyof typeof INVOICE_STATUS_LABELS] ?? status;
 
   if (loading) {
     return (
@@ -328,9 +299,12 @@ export default function ProjectDetailPage({ params }: PageProps) {
                           {formatIDR(inv.amount)}
                         </TableCell>
                         <TableCell className="border-border border-r">
-                          <Badge className={getInvoiceStatusColor(inv.status)}>
-                            {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
-                          </Badge>
+                          <StatusBadge
+                            config={INVOICE_STATUS_CONFIG}
+                            status={inv.status}
+                            label={getInvoiceLabel(inv.status)}
+                            size="sm"
+                          />
                         </TableCell>
                         <TableCell className="border-border border-r text-sm text-muted-foreground">
                           {format(inv.dueDate.toDate(), 'dd MMM yyyy', { locale: idLocale })}
@@ -411,16 +385,22 @@ export default function ProjectDetailPage({ params }: PageProps) {
 
                 <div className="space-y-1">
                   <p className="text-muted-foreground text-xs tracking-wide uppercase">Status</p>
-                  <Badge className={STATUS_COLORS[project.status as ProjectStatus]}>
-                    {STATUS_LABELS[project.status as ProjectStatus]}
-                  </Badge>
+                  <StatusBadge
+                    config={PROJECT_STATUS_CONFIG}
+                    status={project.status}
+                    label={PROJECT_STATUS_LABELS[project.status as keyof typeof PROJECT_STATUS_LABELS]}
+                    size="sm"
+                  />
                 </div>
 
                 <div className="space-y-1">
                   <p className="text-muted-foreground text-xs tracking-wide uppercase">Priority</p>
-                  <Badge className={PRIORITY_COLORS[project.priority as ProjectPriority]}>
-                    {PRIORITY_LABELS[project.priority as ProjectPriority]}
-                  </Badge>
+                  <StatusBadge
+                    config={PRIORITY_CONFIG}
+                    status={project.priority}
+                    label={PRIORITY_LABELS[project.priority]}
+                    size="sm"
+                  />
                 </div>
               </div>
             </CardContent>

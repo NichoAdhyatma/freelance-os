@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -23,8 +23,18 @@ import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { EditableCell } from '@/components/invoices/EditableCell';
 import { useProjects } from '@/hooks/useProjects';
 import { formatIDR } from '@/lib/utils';
+import { getStatusStyle, INVOICE_STATUS_CONFIG, INVOICE_STATUS_LABELS } from '@/lib/tokens';
 import type { Invoice, InvoiceFormData, InvoiceStatus } from '@/types/invoice';
 import type { Client } from '@/types/client';
+
+const STATUS_OPTIONS: { value: InvoiceStatus; label: string }[] = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'sent', label: 'Sent' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
 
 interface InvoiceRowProps {
   invoice: Invoice;
@@ -40,24 +50,6 @@ interface InvoiceRowProps {
   onSendWhatsApp: () => void;
   downloading?: boolean;
 }
-
-const STATUS_OPTIONS: { value: InvoiceStatus; label: string; color: string }[] = [
-  { value: 'draft', label: 'Draft', color: 'bg-muted text-muted-foreground' },
-  { value: 'pending', label: 'Pending', color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
-  { value: 'sent', label: 'Sent', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  { value: 'paid', label: 'Paid', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
-  { value: 'overdue', label: 'Overdue', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
-  { value: 'cancelled', label: 'Cancelled', color: 'bg-muted text-muted-foreground' },
-];
-
-const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  sent: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  paid: 'bg-green-500/10 text-green-500 border-green-500/20',
-  overdue: 'bg-red-500/10 text-red-500 border-red-500/20',
-  cancelled: 'bg-muted text-muted-foreground',
-};
 
 export function InvoiceRow({
   invoice,
@@ -75,7 +67,6 @@ export function InvoiceRow({
 }: InvoiceRowProps) {
   const dueDate = invoice.dueDate.toDate();
   const isOverdue = dueDate < new Date() && invoice.status !== 'paid' && invoice.status !== 'cancelled';
-  const statusColor = STATUS_COLORS[invoice.status] ?? 'bg-muted text-muted-foreground';
 
   const clientDisplay = (client: Client) =>
     client.company ? `${client.name} — ${client.company}` : client.name;
@@ -271,6 +262,7 @@ export function InvoiceRow({
 
   const StatusCell = () => {
     const [open, setOpen] = useState(false);
+    const statusLabel = INVOICE_STATUS_LABELS[invoice.status as keyof typeof INVOICE_STATUS_LABELS] ?? invoice.status;
     return (
       <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
         <div className="group relative flex items-center">
@@ -278,33 +270,39 @@ export function InvoiceRow({
             className="flex cursor-pointer items-center px-2 py-1 -mx-2 rounded hover:bg-accent/50"
             onClick={() => setOpen(true)}
           >
-            <Badge className={statusColor} variant="outline">
-              {STATUS_OPTIONS.find((o) => o.value === invoice.status)?.label ?? invoice.status}
-            </Badge>
+            <StatusBadge
+              config={INVOICE_STATUS_CONFIG}
+              status={invoice.status}
+              label={statusLabel}
+              size="sm"
+            />
           </PopoverPrimitive.Trigger>
           <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
         </div>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Positioner align="start" className="z-50">
             <PopoverPrimitive.Popup className="flex flex-col rounded-lg border bg-popover p-1 shadow-md">
-              {STATUS_OPTIONS.map((o) => (
-                <button
-                  key={o.value}
-                  className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted"
-                  onClick={async () => {
-                    setOpen(false);
-                    try {
-                      await onSave(invoice.id, { status: o.value });
-                      toast.success('Status updated');
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : 'Failed to save');
-                    }
-                  }}
-                >
-                  <span className={`h-2 w-2 rounded-full ${o.color.replace(/.*bg-(\S+).*/g, 'bg-$1')}`} />
-                  {o.label}
-                </button>
-              ))}
+              {STATUS_OPTIONS.map((o) => {
+                const dotStyle = getStatusStyle(INVOICE_STATUS_CONFIG, o.value);
+                return (
+                  <button
+                    key={o.value}
+                    className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted"
+                    onClick={async () => {
+                      setOpen(false);
+                      try {
+                        await onSave(invoice.id, { status: o.value });
+                        toast.success('Status updated');
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : 'Failed to save');
+                      }
+                    }}
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotStyle.style?.background }} />
+                    {o.label}
+                  </button>
+                );
+              })}
             </PopoverPrimitive.Popup>
           </PopoverPrimitive.Positioner>
         </PopoverPrimitive.Portal>
