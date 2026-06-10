@@ -9,14 +9,15 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { ClientForm } from '@/components/clients/ClientForm';
-import { InvoiceForm } from '@/components/invoices/InvoiceForm';
-import { ProjectForm } from '@/components/projects/ProjectForm';
+import type { ClientForm } from '@/components/clients/ClientForm';
+import type { InvoiceForm } from '@/components/invoices/InvoiceForm';
+import type { ProjectForm } from '@/components/projects/ProjectForm';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
@@ -24,6 +25,10 @@ import { cn } from '@/lib/utils';
 import { type ClientFormData } from '@/types/client';
 import { type InvoiceFormData } from '@/types/invoice';
 import { type ProjectFormData } from '@/types/project';
+
+const ClientFormDynamic = dynamic(() => import('@/components/clients/ClientForm').then(m => m.ClientForm), { ssr: false }) as typeof ClientForm;
+const InvoiceFormDynamic = dynamic(() => import('@/components/invoices/InvoiceForm').then(m => m.InvoiceForm), { ssr: false }) as typeof InvoiceForm;
+const ProjectFormDynamic = dynamic(() => import('@/components/projects/ProjectForm').then(m => m.ProjectForm), { ssr: false }) as typeof ProjectForm;
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -188,19 +193,19 @@ export function Sidebar() {
         )}
       </div>
 
-      <ClientForm
+      <ClientFormDynamic
         open={createType === 'client'}
-        onOpenChange={(open) => !open && setCreateType(null)}
+        onOpenChange={(open: boolean) => !open && setCreateType(null)}
         onSubmit={handleClientSubmit}
       />
-      <ProjectForm
+      <ProjectFormDynamic
         open={createType === 'project'}
-        onOpenChange={(open) => !open && setCreateType(null)}
+        onOpenChange={(open: boolean) => !open && setCreateType(null)}
         onSubmit={handleProjectSubmit}
       />
-      <InvoiceForm
+      <InvoiceFormDynamic
         open={createType === 'invoice'}
-        onOpenChange={(open) => !open && setCreateType(null)}
+        onOpenChange={(open: boolean) => !open && setCreateType(null)}
         onSubmit={handleInvoiceSubmit}
       />
     </aside>

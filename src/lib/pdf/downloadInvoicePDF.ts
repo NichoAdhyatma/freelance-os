@@ -1,10 +1,8 @@
 'use client';
 
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { buildInvoiceHTML } from '@/components/invoices/InvoicePDFTemplate';
-import type { Invoice } from '@/types/invoice';
 import type { Client } from '@/types/client';
+import type { Invoice } from '@/types/invoice';
 
 interface DownloadOptions {
   invoice: Invoice;
@@ -13,6 +11,13 @@ interface DownloadOptions {
 }
 
 export async function downloadInvoicePDF({ invoice, client, projectTitle }: DownloadOptions): Promise<void> {
+  const [html2canvasModule, jsPDFModule] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+  const html2canvas = html2canvasModule.default;
+  const jsPDF = jsPDFModule.default;
+
   const html = buildInvoiceHTML({ invoice, client, projectTitle });
 
   // Create a hidden iframe to render the HTML without affecting the DOM

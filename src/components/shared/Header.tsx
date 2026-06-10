@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, User } from 'lucide-react';
+import { LogOut, Menu, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,7 +16,12 @@ import {
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useDashboardTitle } from '@/app/dashboard/_context';
 
-export function Header() {
+interface HeaderProps {
+  onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
+}
+
+export function Header({ onToggleSidebar, sidebarOpen }: HeaderProps) {
   const { user, userProfile, signOut } = useAuth();
   const title = useDashboardTitle();
   const router = useRouter();
@@ -38,7 +43,17 @@ export function Header() {
     <header
       className="flex h-14 items-center justify-between px-6 border-b border-[var(--border-subtle)] bg-[var(--surface-base)]"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150 hover:bg-[var(--surface-hover)] press-scale focus-visible:outline-none focus-visible:ring-2"
+            style={{ color: 'var(--text-tertiary)' }}
+            aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
         {title && (
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">{title}</h1>
