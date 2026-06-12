@@ -10,8 +10,8 @@ import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
-import { ProjectAddRow, ProjectRow } from '@/components/projects/ProjectRow';
 import { QuickAddInvoiceSheet } from '@/components/invoices/QuickAddInvoiceSheet';
+import { ProjectAddRow, ProjectRow } from '@/components/projects/ProjectRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
@@ -209,46 +209,46 @@ export default function ProjectsPage() {
           onAction={search ? () => { setSearch(''); setPage(1); } : () => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-(--border-default) bg-(--surface-raised)">
+        <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)]">
           <Table>
             <TableHeader>
-              <TableRow className="border-(--border-default)">
+              <TableRow className="border-[var(--border-default)]">
                 <TableHead
-                  className="select-none text-xs font-medium w-12 border-r border-(--border-default) text-(--text-tertiary)"
+                  className="select-none text-xs font-medium w-12 border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   #
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-(--border-default) text-(--text-tertiary)"
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('title')}>
                     Title <SortIcon field="title" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-(--border-default) text-(--text-tertiary)"
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   Client
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-(--border-default) text-(--text-tertiary)"
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   Priority
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-(--border-default) text-(--text-tertiary)"
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   Progress
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-(--border-default) text-(--text-tertiary)"
+                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
                 >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('deadline')}>
                     Deadline <SortIcon field="deadline" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium w-20 text-(--text-tertiary)"
+                  className="select-none text-xs font-medium w-20 text-[var(--text-tertiary)]"
                 >
                   Actions
                 </TableHead>
@@ -308,9 +308,9 @@ export default function ProjectsPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div
-              className="flex items-center justify-between px-6 py-4 border-t border-(--border-default)"
+              className="flex items-center justify-between px-6 py-4 border-t border-[var(--border-default)]"
             >
-              <p className="text-sm text-(--text-tertiary)">
+              <p className="text-sm text-[var(--text-tertiary)]">
                 {filtered.length === 0 ? 'No results' : `Showing ${start}–${Math.min(start + PAGE_SIZE - 1, filtered.length)} of ${filtered.length}`}
               </p>
               <div className="flex items-center gap-1">

@@ -28,15 +28,12 @@ export function SummaryCard({
 
   return (
     <div
-      className={cn(
-        'group relative flex flex-col justify-center rounded-xl border p-5 transition-all duration-200 hover:-translate-y-px cursor-default',
-        className,
-      )}
+      className="group relative flex flex-col justify-center rounded-xl border p-5 hover-scale cursor-default"
       style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-default)' }}
     >
       {/* Hover glow effect */}
       <div
-        className="absolute inset-0 rounded-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none"
+        className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200"
         style={{
           boxShadow: 'inset 0 0 0 1px var(--primary), 0 4px 20px var(--primary-muted)',
         }}
