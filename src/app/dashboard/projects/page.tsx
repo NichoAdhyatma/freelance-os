@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { QuickAddInvoiceSheet } from '@/components/invoices/QuickAddInvoiceSheet';
 import { ProjectAddRow, ProjectRow } from '@/components/projects/ProjectRow';
@@ -171,12 +171,14 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <SummaryCardGrid>
-        <SummaryCard label="Total Projects" value={stats.total} sub="All time" icon={<FolderKanban className="h-5 w-5" />} />
-        <SummaryCard label="Active" value={stats.active} sub="In progress" subColor="yellow" icon={<FolderKanban className="h-5 w-5" />} />
-        <SummaryCard label="Completed" value={stats.done} sub="Done" subColor="green" icon={<FolderKanban className="h-5 w-5" />} />
-        <SummaryCard label="Overdue" value={stats.overdue} sub="Need attention" subColor="red" icon={<FolderKanban className="h-5 w-5" />} />
-      </SummaryCardGrid>
+      <StatsGrid
+        items={[
+          { label: 'Total Projects', value: stats.total, sub: 'All time', icon: <FolderKanban className="h-5 w-5" /> },
+          { label: 'Active', value: stats.active, sub: 'In progress', subColor: 'yellow', icon: <FolderKanban className="h-5 w-5" /> },
+          { label: 'Completed', value: stats.done, sub: 'Done', subColor: 'green', icon: <FolderKanban className="h-5 w-5" /> },
+          { label: 'Overdue', value: stats.overdue, sub: 'Need attention', subColor: 'red', icon: <FolderKanban className="h-5 w-5" /> },
+        ]}
+      />
 
       {/* Search + Create */}
       <div className="flex items-center justify-between gap-4">
