@@ -9,7 +9,7 @@ import { id } from 'date-fns/locale';
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { InlineAddClientCard } from '@/components/clients/InlineAddClientCard';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
 import { InvoiceRow } from '@/components/invoices/InvoiceRow';
@@ -189,12 +189,14 @@ export default function FinancePage() {
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <SummaryCardGrid>
-        <SummaryCard label="Total Revenue" value={formatIDR(stats.totalRevenue)} sub="Completed" subColor="green" icon={<Receipt className="h-5 w-5" />} />
-        <SummaryCard label="Outstanding" value={formatIDR(stats.outstanding)} sub="Awaiting" subColor="yellow" icon={<Receipt className="h-5 w-5" />} />
-        <SummaryCard label="Sent" value={statusCounts.sent} sub="In progress" subColor="default" icon={<Receipt className="h-5 w-5" />} />
-        <SummaryCard label="Overdue" value={stats.overdue} sub="Needs action" subColor="red" icon={<Receipt className="h-5 w-5" />} />
-      </SummaryCardGrid>
+      <StatsGrid
+        items={[
+          { label: 'Total Revenue', value: formatIDR(stats.totalRevenue), sub: 'Completed', subColor: 'green' },
+          { label: 'Outstanding', value: formatIDR(stats.outstanding), sub: 'Awaiting', subColor: 'yellow' },
+          { label: 'Sent', value: statusCounts.sent, sub: 'In progress' },
+          { label: 'Overdue', value: stats.overdue, sub: 'Needs action', subColor: 'red' },
+        ]}
+      />
 
       {/* Search + Create */}
       <div className="flex items-center justify-between gap-4">
