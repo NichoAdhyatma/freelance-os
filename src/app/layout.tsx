@@ -5,6 +5,7 @@ import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from 'next/font/google';
 
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/features/auth/hooks/useAuth';
 
 const inter = Inter({
@@ -34,12 +35,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${plusJakarta.variable} dark h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${plusJakarta.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <AuthProvider>
           <TooltipProvider>
-            {children}
-            <Toaster />
+            <ThemeProvider>
+              {children}
+              <Toaster />
+            </ThemeProvider>
           </TooltipProvider>
         </AuthProvider>
       </body>

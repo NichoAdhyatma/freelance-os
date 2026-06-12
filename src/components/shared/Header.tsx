@@ -1,7 +1,8 @@
 'use client';
 
-import { LogOut, Menu, User } from 'lucide-react';
+import { LogOut, Moon, Sun, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { toggleTheme } from '@/components/theme-provider';
 import { useDashboardTitle } from '@/app/dashboard/_context';
 
 interface HeaderProps {
@@ -25,6 +27,21 @@ export function Header({ onToggleSidebar, sidebarOpen }: HeaderProps) {
   const { user, userProfile, signOut } = useAuth();
   const title = useDashboardTitle();
   const router = useRouter();
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains('dark'));
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleToggleTheme = () => {
+    toggleTheme();
+    setIsDark(!isDark);
+  };
 
   const getInitials = (name: string) =>
     name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -63,6 +80,18 @@ export function Header({ onToggleSidebar, sidebarOpen }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={handleToggleTheme}
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-all hover:bg-[var(--surface-hover)] active:scale-95"
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDark ? (
+            <Sun className="h-4 w-4 text-[var(--text-secondary)]" />
+          ) : (
+            <Moon className="h-4 w-4 text-[var(--text-secondary)]" />
+          )}
+        </button>
+
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
