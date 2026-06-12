@@ -9,7 +9,7 @@ import { setDashboardTitle } from '@/app/dashboard/_context';
 import { ClientInlineRow } from '@/components/clients/ClientInlineRow';
 import { ClientRow } from '@/components/clients/ClientRow';
 import { SortIcon } from '@/components/dashboard/SortIcon';
-import { SummaryCard, SummaryCardGrid } from '@/components/dashboard/SummaryCard';
+import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -153,12 +153,14 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <SummaryCardGrid>
-        <SummaryCard label="Total Clients" value={stats.total} sub="All time" icon={<Users className="h-5 w-5" />} />
-        <SummaryCard label="Active Clients" value={stats.activeClients} sub="Has projects" subColor="green" icon={<Users className="h-5 w-5" />} />
-        <SummaryCard label="Total Projects" value={projects.length} sub="Across all clients" subColor="default" icon={<Users className="h-5 w-5" />} />
-        <SummaryCard label="Total Invoices" value="—" sub="Via finance page" subColor="default" icon={<Users className="h-5 w-5" />} />
-      </SummaryCardGrid>
+      <StatsGrid
+        items={[
+          { label: 'Total Clients', value: stats.total, sub: 'All time' },
+          { label: 'Active Clients', value: stats.activeClients, sub: 'Has projects', subColor: 'green' },
+          { label: 'Total Projects', value: projects.length, sub: 'Across all clients' },
+          { label: 'Total Invoices', value: '—', sub: 'Via finance page' },
+        ]}
+      />
 
       {/* Search + Create */}
       <div className="flex items-center justify-between gap-4">
