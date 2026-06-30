@@ -142,11 +142,11 @@ export function InvoiceBuilder() {
         <div className="space-y-1.5">
           <Label className="text-xs text-[var(--text-tertiary)]">Client *</Label>
           <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-            <PopoverTrigger asChild>
-              <button
+            <PopoverTrigger>
+              <div
                 role="combobox"
                 className={cn(
-                  'w-full flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors text-left',
+                  'w-full flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors',
                   !clientId && 'text-muted-foreground',
                 )}
               >
@@ -155,7 +155,7 @@ export function InvoiceBuilder() {
                   {clientId ? (selectedClient?.name ?? 'Select client') : 'Select client'}
                 </span>
                 <ChevronDown className="h-4 w-4 shrink-0 opacity-50 ml-auto" />
-              </button>
+              </div>
             </PopoverTrigger>
             <PopoverContent className="w-72 p-0" align="start">
               <Command>
@@ -184,11 +184,11 @@ export function InvoiceBuilder() {
         <div className="space-y-1.5">
           <Label className="text-xs text-[var(--text-tertiary)]">Due Date</Label>
           <Popover>
-            <PopoverTrigger asChild>
-              <button className="w-full flex items-center h-10 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors text-left">
+            <PopoverTrigger>
+              <div className="w-full flex items-center h-10 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors">
                 <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                 {format(dueDate, 'dd MMM yyyy', { locale: id })}
-              </button>
+              </div>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar mode="single" selected={dueDate} onSelect={(d) => d && setDueDate(d)} />
