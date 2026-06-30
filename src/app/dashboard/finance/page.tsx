@@ -1,6 +1,7 @@
 'use client';
 
 import { Receipt } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -12,7 +13,7 @@ import { SortIcon } from '@/components/dashboard/SortIcon';
 import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
-import { InvoiceRow } from '@/components/invoices/InvoiceRow';
+import { InvoiceRow, INVOICE_COLUMNS } from '@/components/invoices/InvoiceRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { downloadInvoicePDF } from '@/lib/pdf/downloadInvoicePDF';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ const PAGE_SIZE = 10;
 
 export default function FinancePage() {
   setDashboardTitle('Finance');
+  const router = useRouter();
 
   const { invoices, loading, add, edit, remove } = useInvoices();
   const { clients } = useClients();
@@ -205,7 +207,7 @@ export default function FinancePage() {
           onChange={(v) => { setSearch(v); setPage(1); }}
           placeholder="Search invoices..."
         />
-        <Button onClick={() => setAddingRow(true)} size="sm" className="shrink-0">
+        <Button onClick={() => router.push('/dashboard/invoices/new')} size="sm" className="shrink-0">
           <Receipt className="h-4 w-4" />
           New Invoice
         </Button>
@@ -229,7 +231,7 @@ export default function FinancePage() {
           title={search ? 'No invoices found' : 'No invoices yet'}
           description={search ? `Pencarian "${search}" tidak ditemukan.` : 'Create your first invoice to start tracking payments'}
           actionLabel={search ? 'Reset Filter' : 'Create Invoice'}
-          onAction={search ? () => { setSearch(''); setPage(1); } : () => setAddingRow(true)}
+          onAction={search ? () => { setSearch(''); setPage(1); } : () => router.push('/dashboard/invoices/new')}
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)]">
