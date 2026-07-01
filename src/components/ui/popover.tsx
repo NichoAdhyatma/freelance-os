@@ -17,6 +17,18 @@ function PopoverTrigger({ children, ...props }: PopoverPrimitive.Trigger.Props) 
   );
 }
 
+function PopoverTriggerWrapper({ children, className, ...props }: { children: React.ReactNode; className?: string } & Omit<PopoverPrimitive.Trigger.Props, 'render'>) {
+  return (
+    <PopoverPrimitive.Trigger
+      data-slot="popover-trigger"
+      render={<button type="button" className={cn('flex flex-1 cursor-pointer items-center', className)} />}
+      {...props}
+    >
+      {children}
+    </PopoverPrimitive.Trigger>
+  );
+}
+
 function PopoverContent({
   className,
   align = 'center',
@@ -78,4 +90,4 @@ function PopoverDescription({ className, ...props }: PopoverPrimitive.Descriptio
   );
 }
 
-export { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger };
+export { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger, PopoverTriggerWrapper };

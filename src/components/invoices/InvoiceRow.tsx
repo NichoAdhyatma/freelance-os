@@ -1,11 +1,15 @@
 'use client';
 
-import { Copy, Download, MoreHorizontal, Pencil, Plus, Send, Trash2, User, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+import { Copy, Download, MoreHorizontal, Plus, Send, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
+import { EditableRow, type CellDef, useEditableRow } from '@/components/shared/EditableRow';
+import { ClientSelectCell } from '@/components/shared/EditableRow/cells/SelectCell';
+import { PopoverCell } from '@/components/shared/EditableRow/cells/PopoverCell';
+import { SelectCell } from '@/components/shared/EditableRow/cells/SelectCell';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -17,10 +21,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
-import { EditableCell } from '@/components/invoices/EditableCell';
 import { useProjects } from '@/hooks/useProjects';
 import { formatIDR } from '@/lib/utils';
 import { getStatusStyle, INVOICE_STATUS_CONFIG, INVOICE_STATUS_LABELS } from '@/lib/tokens';
@@ -35,6 +37,18 @@ const STATUS_OPTIONS: { value: InvoiceStatus; label: string }[] = [
   { value: 'overdue', label: 'Overdue' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
+
+// ── Column Width Config ────────────────────────────────────────────────────────
+export const INVOICE_COLUMNS = {
+  index: 'w-8',
+  invoiceNumber: 'w-32',
+  client: 'w-44',
+  project: 'w-36',
+  amount: 'w-36',
+  dueDate: 'w-32',
+  status: 'w-24',
+  actions: 'w-24',
+} as const;
 
 interface InvoiceRowProps {
   invoice: Invoice;
@@ -51,6 +65,8 @@ interface InvoiceRowProps {
   downloading?: boolean;
 }
 
+type CellKey = 'client' | 'project' | 'amount' | 'dueDate' | 'status';
+
 export function InvoiceRow({
   invoice,
   index,
@@ -65,254 +81,172 @@ export function InvoiceRow({
   onSendWhatsApp,
   downloading,
 }: InvoiceRowProps) {
+  const { projects } = useProjects();
   const dueDate = invoice.dueDate.toDate();
   const isOverdue = dueDate < new Date() && invoice.status !== 'paid' && invoice.status !== 'cancelled';
 
-  const clientDisplay = (client: Client) =>
-    client.company ? `${client.name} — ${client.company}` : client.name;
-
-  const displayClient = invoice.clientId
-    ? clients.find((c) => c.id === invoice.clientId)
-    : null;
-
-  const ClientCell = () => {
-    const [open, setOpen] = useState(false);
-    return (
-      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <div className="group relative flex items-center">
-          <PopoverPrimitive.Trigger
-            className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            onClick={() => setOpen(true)}
-          >
-            {displayClient ? clientDisplay(displayClient) : '—'}
-            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-          </PopoverPrimitive.Trigger>
-          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
-        </div>
-        <PopoverPrimitive.Portal>
-          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
-            <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
-              <div className="px-1 py-1.5 text-xs font-medium text-muted-foreground">Select Client</div>
-              {clients.length === 0 ? (
-                <p className="px-2 py-2 text-xs text-muted-foreground">No clients yet</p>
-              ) : (
-                <div className="max-h-56 overflow-y-auto">
-                  <button
-                    className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
-                    onClick={() => { onSave(invoice.id, { clientId: undefined }).then(() => setOpen(false)); }}
-                  >
-                    — No client —
-                  </button>
-                  {clients.map((c) => (
-                    <button
-                      key={c.id}
-                      className="flex w-full items-center gap-2 px-2 py-2 text-sm hover:bg-muted"
-                      onClick={() => { onSave(invoice.id, { clientId: c.id }).then(() => setOpen(false)); }}
-                    >
-                      <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{clientDisplay(c)}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="border-t border-border pt-1">
-                <button
-                  className="flex w-full items-center gap-2 px-2 py-2 text-sm text-primary hover:bg-muted"
-                  onClick={() => { setOpen(false); onAddClient(); }}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Add new client
-                </button>
-              </div>
-            </PopoverPrimitive.Popup>
-          </PopoverPrimitive.Positioner>
-        </PopoverPrimitive.Portal>
-      </PopoverPrimitive.Root>
-    );
-  };
-
-  // ── Project cell ─────────────────────────────────────────────────────────
-  const { projects } = useProjects();
-  const ProjectCell = () => {
-    const [open, setOpen] = useState(false);
-    const clientProjects = projects.filter((p) => p.clientId === invoice.clientId);
-    const selected = clientProjects.find((p) => p.id === invoice.projectId);
-
-    return (
-      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <div className="group relative flex items-center">
-          <PopoverPrimitive.Trigger
-            className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            onClick={() => setOpen(true)}
-          >
-            <span className="whitespace-nowrap">{selected?.title || '—'}</span>
-            <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
-          </PopoverPrimitive.Trigger>
-          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
-        </div>
-        <PopoverPrimitive.Portal>
-          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
-            <PopoverPrimitive.Popup className="flex w-72 flex-col gap-1 rounded-lg border bg-popover p-2 shadow-md">
-              <div className="px-1 py-1.5 text-xs font-medium text-muted-foreground">Select Project</div>
-              {clientProjects.length === 0 ? (
-                <p className="px-2 py-2 text-xs text-muted-foreground">No projects</p>
-              ) : (
-                <div className="max-h-56 overflow-y-auto">
-                  <button
-                    className="flex w-full items-center gap-2 px-2 py-2 text-sm text-muted-foreground hover:bg-muted"
-                    onClick={() => { onSave(invoice.id, { projectId: undefined }).then(() => setOpen(false)); }}
-                  >
-                    — No project —
-                  </button>
-                  {clientProjects.map((p) => (
-                    <button
-                      key={p.id}
-                      className="flex w-full items-center gap-2 px-2 py-2 text-sm hover:bg-muted"
-                      onClick={() => { onSave(invoice.id, { projectId: p.id }).then(() => setOpen(false)); }}
-                    >
-                      <span className="truncate">{p.title}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </PopoverPrimitive.Popup>
-          </PopoverPrimitive.Positioner>
-        </PopoverPrimitive.Portal>
-      </PopoverPrimitive.Root>
-    );
-  };
-
-  const [editingAmount, setEditingAmount] = useState(false);
+  const [editingCell, setEditingCell] = useState<CellKey | null>(null);
   const [editAmount, setEditAmount] = useState(String(invoice.amount));
+
+  const { isEditing, startEditing, revertCell } = useEditableRow<CellKey>({
+    editingCell,
+    setEditingCell,
+    onSwitchCell: async (key) => {
+      if (key === 'amount') {
+        const num = Number(editAmount.replace(/\D/g, ''));
+        if (!isNaN(num) && num > 0) {
+          await onSave(invoice.id, { amount: num });
+        }
+      }
+    },
+    resetEditState: (key) => {
+      if (key === 'amount') setEditAmount(String(invoice.amount));
+    },
+  });
+
+  const clientDisplay = (c: Client) => c.company ? `${c.name} — ${c.company}` : c.name;
+  const displayClient = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) : null;
+  const clientProjects = projects.filter((p) => p.clientId === invoice.clientId);
+  const displayProject = invoice.projectId ? clientProjects.find((p) => p.id === invoice.projectId) : null;
 
   const handleSaveAmount = async () => {
     const num = Number(editAmount.replace(/\D/g, ''));
     if (isNaN(num) || num <= 0) { toast.error('Invalid amount'); return; }
-    try {
-      await onSave(invoice.id, { amount: num });
-      setEditingAmount(false);
-      toast.success('Amount updated');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
-    }
+    await onSave(invoice.id, { amount: num });
+    setEditingCell(null);
   };
 
-  const AmountCell = () =>
-    editingAmount ? (
-      <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">Rp</span>
-        <Input
-          autoFocus
-          value={editAmount ? Number(editAmount).toLocaleString('id-ID') : ''}
-          onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))}
-          inputMode="numeric"
-          className="h-8 w-36 pl-8 text-sm"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); handleSaveAmount(); }
-            if (e.key === 'Escape') { setEditingAmount(false); setEditAmount(String(invoice.amount)); }
-          }}
-          onBlur={handleSaveAmount}
+  const cells: CellDef<CellKey>[] = [
+    {
+      key: 'client',
+      width: INVOICE_COLUMNS.client,
+      display: (
+        <div className="w-full truncate px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50">
+          {displayClient ? clientDisplay(displayClient) : '—'}
+        </div>
+      ),
+      edit: (
+        <ClientSelectCell
+          value={invoice.clientId ?? ''}
+          clients={clients}
+          onChange={(v) => onSave(invoice.id, { clientId: v || undefined }).then(() => setEditingCell(null))}
+          onAddNew={onAddClient}
+          onTriggerEdit={() => startEditing('client')}
         />
-      </div>
-    ) : (
-      <div className="group relative flex items-center">
-        <span
-          className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-accent/50"
-          onClick={() => { setEditAmount(String(invoice.amount)); setEditingAmount(true); }}
-        >
+      ),
+    },
+    {
+      key: 'project',
+      width: INVOICE_COLUMNS.project,
+      display: (
+        <div className="w-full truncate px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50">
+          {displayProject?.title || '—'}
+        </div>
+      ),
+      edit: (
+        <SelectCell
+          value={invoice.projectId ?? ''}
+          options={[
+            { value: '', label: '— No project —' },
+            ...clientProjects.map((p) => ({ value: p.id, label: p.title })),
+          ]}
+          onChange={(v) => onSave(invoice.id, { projectId: v || undefined }).then(() => setEditingCell(null))}
+          onTriggerEdit={() => startEditing('project')}
+        />
+      ),
+    },
+    {
+      key: 'amount',
+      width: INVOICE_COLUMNS.amount,
+      display: (
+        <div className="w-full truncate px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50">
           {formatIDR(invoice.amount)}
-        </span>
-        <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
-      </div>
-    );
-
-  const DueDateCell = () => {
-    const [open, setOpen] = useState(false);
-    return (
-      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <div className="group relative flex items-center">
-          <PopoverPrimitive.Trigger
-            className="flex cursor-pointer items-center gap-1 px-2 py-1 -mx-2 rounded text-sm hover:text-foreground hover:bg-accent/50"
-            onClick={() => setOpen(true)}
-          >
+        </div>
+      ),
+      edit: (
+        <div className="relative">
+          <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">Rp</span>
+          <Input
+            autoFocus
+            value={editAmount ? Number(editAmount).toLocaleString('id-ID') : ''}
+            onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))}
+            inputMode="numeric"
+            className="h-8 w-36 pl-8 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleSaveAmount(); }
+              if (e.key === 'Escape') { e.preventDefault(); revertCell('amount'); }
+            }}
+            onBlur={handleSaveAmount}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'dueDate',
+      width: INVOICE_COLUMNS.dueDate,
+      display: (
+        <div className="w-full truncate px-2 py-1 rounded text-sm hover:text-foreground hover:bg-accent/50">
+          <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
+            {format(dueDate, 'dd MMM yyyy', { locale: id })}
+          </span>
+        </div>
+      ),
+      edit: (
+        <PopoverCell
+          className="flex flex-1 cursor-pointer items-center gap-1 px-2 py-1 rounded text-sm hover:text-foreground hover:bg-accent/50"
+          trigger={
             <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
               {format(dueDate, 'dd MMM yyyy', { locale: id })}
             </span>
-          </PopoverPrimitive.Trigger>
-          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
-        </div>
-        <PopoverPrimitive.Portal>
-          <PopoverPrimitive.Positioner align="start" sideOffset={4} className="z-50">
-            <PopoverPrimitive.Popup className="rounded-lg border bg-popover p-2 shadow-md">
-              <Calendar
-                mode="single"
-                selected={dueDate}
-                onSelect={(d) => {
-                  if (d) { onSave(invoice.id, { dueDate: d }); }
-                  setOpen(false);
-                }}
-                disabled={(d) => d < new Date('2020-01-01')}
-              />
-            </PopoverPrimitive.Popup>
-          </PopoverPrimitive.Positioner>
-        </PopoverPrimitive.Portal>
-      </PopoverPrimitive.Root>
-    );
-  };
-
-  const StatusCell = () => {
-    const [open, setOpen] = useState(false);
-    const statusLabel = INVOICE_STATUS_LABELS[invoice.status as keyof typeof INVOICE_STATUS_LABELS] ?? invoice.status;
-    return (
-      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
-        <div className="group relative flex items-center">
-          <PopoverPrimitive.Trigger
-            className="flex cursor-pointer items-center px-2 py-1 -mx-2 rounded hover:bg-accent/50"
-            onClick={() => setOpen(true)}
-          >
-            <StatusBadge
-              config={INVOICE_STATUS_CONFIG}
-              status={invoice.status}
-              label={statusLabel}
-              size="sm"
+          }
+          content={
+            <Calendar
+              mode="single"
+              selected={dueDate}
+              onSelect={(d) => {
+                if (d) onSave(invoice.id, { dueDate: d });
+                setEditingCell(null);
+              }}
+              disabled={(d) => d < new Date('2020-01-01')}
             />
-          </PopoverPrimitive.Trigger>
-          <Pencil className="invisible group-hover:visible mr-1 h-3 w-3 text-muted-foreground shrink-0" />
+          }
+          onTriggerEdit={() => startEditing('dueDate')}
+        />
+      ),
+    },
+    {
+      key: 'status',
+      width: INVOICE_COLUMNS.status,
+      display: (
+        <div className="px-2 py-1">
+          <StatusBadge
+            config={INVOICE_STATUS_CONFIG}
+            status={invoice.status}
+            label={INVOICE_STATUS_LABELS[invoice.status as keyof typeof INVOICE_STATUS_LABELS] ?? invoice.status}
+            size="sm"
+          />
         </div>
-        <PopoverPrimitive.Portal>
-          <PopoverPrimitive.Positioner align="start" className="z-50">
-            <PopoverPrimitive.Popup className="flex flex-col rounded-lg border bg-popover p-1 shadow-md">
-              {STATUS_OPTIONS.map((o) => {
-                const dotStyle = getStatusStyle(INVOICE_STATUS_CONFIG, o.value);
-                return (
-                  <button
-                    key={o.value}
-                    className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted"
-                    onClick={async () => {
-                      setOpen(false);
-                      try {
-                        await onSave(invoice.id, { status: o.value });
-                        toast.success('Status updated');
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : 'Failed to save');
-                      }
-                    }}
-                  >
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotStyle.style?.background }} />
-                    {o.label}
-                  </button>
-                );
-              })}
-            </PopoverPrimitive.Popup>
-          </PopoverPrimitive.Positioner>
-        </PopoverPrimitive.Portal>
-      </PopoverPrimitive.Root>
-    );
-  };
+      ),
+      edit: (
+        <SelectCell
+          value={invoice.status}
+          options={STATUS_OPTIONS.map((o) => {
+            const dotStyle = getStatusStyle(INVOICE_STATUS_CONFIG, o.value);
+            return { value: o.value, label: o.label, style: { background: dotStyle.style?.background } };
+          })}
+          onChange={(v) => onSave(invoice.id, { status: v as InvoiceStatus }).then(() => setEditingCell(null))}
+          onTriggerEdit={() => startEditing('status')}
+        />
+      ),
+    },
+  ];
 
   return (
-    <TableRow
-      className="border-b border-border hover:bg-accent/50"
+    <EditableRow
+      cells={cells}
+      index={index}
+      isEditing={isEditing}
+      onCellClick={startEditing}
       onContextMenu={(e) => {
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, [
@@ -321,62 +255,12 @@ export function InvoiceRow({
           { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: onDelete },
         ]);
       }}
-    >
-      {/* # */}
-      <TableCell className="w-12 border-r border-border py-3 pl-4 pr-2 text-muted-foreground text-sm">
-        {index}
-      </TableCell>
-
-      {/* Invoice # */}
-      <TableCell className="border-r border-border font-mono py-3 text-muted-foreground text-sm">
-        {invoice.invoiceNumber}
-      </TableCell>
-
-      {/* Client */}
-      <TableCell className="w-fit border-r border-border py-3">
-        <ClientCell />
-      </TableCell>
-
-      {/* Project */}
-      <TableCell className="w-fit border-r border-border py-3 text-sm">
-        <ProjectCell />
-      </TableCell>
-
-      {/* Amount */}
-      <TableCell className="w-fit border-r border-border py-3">
-        <AmountCell />
-      </TableCell>
-
-      {/* Due Date */}
-      <TableCell className="border-r border-border py-3">
-        <DueDateCell />
-      </TableCell>
-
-      {/* Status */}
-      <TableCell className="border-r border-border py-3">
-        <StatusCell />
-      </TableCell>
-
-      {/* Actions */}
-      <TableCell className="py-3 pr-4">
+      actions={
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            title="Send WhatsApp"
-            onClick={onSendWhatsApp}
-          >
+          <Button variant="ghost" size="icon" className="h-7 w-7" title="Send WhatsApp" onClick={onSendWhatsApp}>
             <Send className="h-3.5 w-3.5 text-green-500" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            title="Download PDF"
-            disabled={downloading}
-            onClick={onDownloadPDF}
-          >
+          <Button variant="ghost" size="icon" className="h-7 w-7" title="Download PDF" disabled={downloading} onClick={onDownloadPDF}>
             {downloading ? (
               <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
             ) : (
@@ -400,7 +284,7 @@ export function InvoiceRow({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </TableCell>
-    </TableRow>
+      }
+    />
   );
 }

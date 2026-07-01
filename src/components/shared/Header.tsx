@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Moon, Sun, User } from 'lucide-react';
+import { LogOut, Menu, Moon, Sun, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 

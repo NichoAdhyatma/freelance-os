@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { ClientInlineRow } from '@/components/clients/ClientInlineRow';
-import { ClientRow } from '@/components/clients/ClientRow';
+import { ClientRow, CLIENT_COLUMNS } from '@/components/clients/ClientRow';
 import { SortIcon } from '@/components/dashboard/SortIcon';
 import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
@@ -194,18 +194,24 @@ export default function ClientsPage() {
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)]">
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow className="border-[var(--border-default)]">
-                <TableHead className="select-none text-xs font-medium w-12 border-r border-[var(--border-default)] text-[var(--text-tertiary)]">#</TableHead>
-                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">
-                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('name')}>
+                <TableHead className={`select-none text-xs font-medium ${CLIENT_COLUMNS.index} border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pl-4 pr-2 shrink-0`}> #</TableHead>
+                <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.name} shrink-0 overflow-hidden`}>
+                  <span className="flex cursor-pointer items-center gap-1 truncate" onClick={() => handleSort('name')}>
                     Name <SortIcon field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
-                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">Company</TableHead>
-                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">Contact</TableHead>
-                <TableHead className="select-none text-xs font-medium text-[var(--text-tertiary)]">Projects</TableHead>
+                <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.company} shrink-0 overflow-hidden`}>
+                  Company
+                </TableHead>
+                <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.contact} shrink-0 overflow-hidden`}>
+                  Contact
+                </TableHead>
+                <TableHead className={`select-none text-xs font-medium text-[var(--text-tertiary)] py-2 pr-4 ${CLIENT_COLUMNS.projects} shrink-0`}>
+                  Projects
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

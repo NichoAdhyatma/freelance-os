@@ -11,7 +11,7 @@ import { SortIcon } from '@/components/dashboard/SortIcon';
 import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { QuickAddInvoiceSheet } from '@/components/invoices/QuickAddInvoiceSheet';
-import { ProjectAddRow, ProjectRow } from '@/components/projects/ProjectRow';
+import { ProjectAddRow, ProjectRow, PROJECT_COLUMNS } from '@/components/projects/ProjectRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
@@ -212,45 +212,50 @@ export default function ProjectsPage() {
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)]">
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow className="border-[var(--border-default)]">
                 <TableHead
-                  className="select-none text-xs font-medium w-12 border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium ${PROJECT_COLUMNS.index} border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pl-4 pr-2 shrink-0`}
                 >
                   #
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${PROJECT_COLUMNS.title} overflow-hidden shrink-0`}
                 >
-                  <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('title')}>
+                  <span className="flex cursor-pointer items-center gap-1 truncate" onClick={() => handleSort('title')}>
                     Title <SortIcon field="title" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${PROJECT_COLUMNS.client} overflow-hidden shrink-0`}
                 >
                   Client
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${PROJECT_COLUMNS.priority} shrink-0`}
                 >
                   Priority
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${PROJECT_COLUMNS.progress} shrink-0`}
                 >
                   Progress
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${PROJECT_COLUMNS.deadline} overflow-hidden shrink-0`}
                 >
                   <span className="flex cursor-pointer items-center gap-1" onClick={() => handleSort('deadline')}>
                     Deadline <SortIcon field="deadline" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                   </span>
                 </TableHead>
                 <TableHead
-                  className="select-none text-xs font-medium w-20 text-[var(--text-tertiary)]"
+                  className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${PROJECT_COLUMNS.invoice} overflow-hidden shrink-0`}
+                >
+                  Invoice
+                </TableHead>
+                <TableHead
+                  className={`select-none text-xs font-medium text-[var(--text-tertiary)] py-2 pr-4 ${PROJECT_COLUMNS.actions} shrink-0`}
                 >
                   Actions
                 </TableHead>
