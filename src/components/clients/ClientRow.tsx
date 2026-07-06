@@ -1,50 +1,47 @@
 'use client';
 
-import { ArrowRight, Copy, Mail, Pencil, Plus, Trash2 } from 'lucide-react';
-import Link from 'next/link';
+import { Copy, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { EditableRow, type CellDef, useEditableRow } from '@/components/shared/EditableRow';
 import { TextCell } from '@/components/shared/EditableRow/cells/TextCell';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { TableCell, TableRow } from '@/components/ui/table';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
 import type { Client, ClientFormData } from '@/types/client';
 
 // ── Column Width Config ────────────────────────────────────────────────────────
 export const CLIENT_COLUMNS = {
   index: 'w-8',
-  name: 'w-48',
+  name: 'flex-1',
   company: 'w-40',
-  contact: 'w-52',
-  projects: 'w-20',
-  actions: 'w-10',
+  email: 'w-48',
+  whatsapp: 'w-40',
+  actions: 'w-20',
 } as const;
 
 interface ClientRowProps {
   client: Client;
   index: number;
-  projectCount: number;
+  showActions?: boolean;
   onSave: (id: string, data: Partial<ClientFormData>) => Promise<void>;
   onDelete: () => void;
   onDuplicate: () => void;
   onAddNew: () => void;
-  onNavigate: () => void;
+  onOpen: () => void;
 }
 
-type CellKey = 'name' | 'company' | 'contact';
+type CellKey = 'name' | 'company' | 'email' | 'whatsapp';
 
 export function ClientRow({
   client,
   index,
-  projectCount,
+  showActions = true,
   onSave,
   onDelete,
   onDuplicate,
   onAddNew,
-  onNavigate,
+  onOpen,
 }: ClientRowProps) {
   const [editingCell, setEditingCell] = useState<CellKey | null>(null);
   const [editName, setEditName] = useState(client.name);
@@ -56,24 +53,25 @@ export function ClientRow({
     editingCell,
     setEditingCell,
     onSwitchCell: async (key) => {
-      if (key === 'name' || key === 'company') {
+      if (key === 'name' || key === 'company' || key === 'email' || key === 'whatsapp') {
         await onSave(client.id, {
           name: editName.trim() || client.name,
           company: editCompany.trim() || undefined,
-          email: client.email ?? undefined,
-          whatsapp: client.whatsapp ?? undefined,
+          email: editEmail.trim() || undefined,
+          whatsapp: editWhatsapp.trim() || undefined,
         });
       }
     },
     resetEditState: (key) => {
       if (key === 'name') setEditName(client.name);
       if (key === 'company') setEditCompany(client.company ?? '');
-      if (key === 'contact') { setEditEmail(client.email ?? ''); setEditWhatsapp(client.whatsapp ?? ''); }
+      if (key === 'email') setEditEmail(client.email ?? '');
+      if (key === 'whatsapp') setEditWhatsapp(client.whatsapp ?? '');
     },
   });
 
   const handleSaveAll = async () => {
-    if (!editName.trim()) { toast.error('Name is required'); return; }
+    if (!editName.trim()) { toast.error('Nama harus diisi'); return; }
     try {
       await onSave(client.id, {
         name: editName.trim(),
@@ -82,9 +80,9 @@ export function ClientRow({
         whatsapp: editWhatsapp.trim() || undefined,
       });
       setEditingCell(null);
-      toast.success('Client updated');
+      toast.success('Client diupdate');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan');
     }
   };
 
@@ -93,7 +91,7 @@ export function ClientRow({
       key: 'name',
       width: CLIENT_COLUMNS.name,
       display: (
-        <div className="w-full truncate px-2 py-1 rounded font-medium hover:text-primary hover:bg-accent/50">
+        <div className="w-full truncate px-2 py-1 rounded font-medium">
           {client.name}
         </div>
       ),
@@ -110,7 +108,7 @@ export function ClientRow({
       key: 'company',
       width: CLIENT_COLUMNS.company,
       display: (
-        <div className="w-full truncate px-2 py-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50">
+        <div className="w-full truncate px-2 py-1 rounded text-muted-foreground">
           {client.company || '—'}
         </div>
       ),
@@ -124,61 +122,48 @@ export function ClientRow({
       ),
     },
     {
-      key: 'contact',
-      width: CLIENT_COLUMNS.contact,
+      key: 'email',
+      width: CLIENT_COLUMNS.email,
       display: (
-        <div className="flex items-center gap-2 px-2 py-1 rounded hover:bg-accent/50">
-          {client.email && (
-            <a
-              href={`mailto:${client.email}`}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Mail className="h-3 w-3 shrink-0" />
-              <span className="truncate max-w-[100px]">{client.email}</span>
-            </a>
-          )}
-          {client.whatsapp && (
-            <a
-              href={`https://wa.me/${client.whatsapp.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground flex items-center text-xs hover:text-green-500"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span className="text-[10px] font-semibold">WA</span>
-            </a>
-          )}
-          {!client.email && !client.whatsapp && (
-            <span className="text-xs text-muted-foreground">Click to add</span>
-          )}
+        <div className="w-full truncate px-2 py-1 rounded text-muted-foreground text-xs">
+          {client.email || <span className="text-muted-foreground/30">—</span>}
         </div>
       ),
       edit: (
-        <div className="flex flex-col gap-1">
-          <Input
-            autoFocus
-            value={editEmail}
-            onChange={(e) => setEditEmail(e.target.value)}
-            placeholder="email@example.com"
-            type="email"
-            className="h-7 text-xs"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSaveAll();
-              if (e.key === 'Escape') { revertCell('contact'); }
-            }}
-          />
-          <Input
-            value={editWhatsapp}
-            onChange={(e) => setEditWhatsapp(e.target.value)}
-            placeholder="+62 xxx"
-            className="h-7 text-xs"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSaveAll();
-              if (e.key === 'Escape') { revertCell('contact'); }
-            }}
-          />
+        <Input
+          autoFocus
+          value={editEmail}
+          onChange={(e) => setEditEmail(e.target.value)}
+          placeholder="email@example.com"
+          type="email"
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSaveAll();
+            if (e.key === 'Escape') { revertCell('email'); }
+          }}
+        />
+      ),
+    },
+    {
+      key: 'whatsapp',
+      width: CLIENT_COLUMNS.whatsapp,
+      display: (
+        <div className="w-full truncate px-2 py-1 rounded text-muted-foreground text-xs">
+          {client.whatsapp || <span className="text-muted-foreground/30">—</span>}
         </div>
+      ),
+      edit: (
+        <Input
+          autoFocus
+          value={editWhatsapp}
+          onChange={(e) => setEditWhatsapp(e.target.value)}
+          placeholder="+62 xxx"
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSaveAll();
+            if (e.key === 'Escape') { revertCell('whatsapp'); }
+          }}
+        />
       ),
     },
   ];
@@ -187,38 +172,20 @@ export function ClientRow({
     <EditableRow
       cells={cells}
       index={index}
+      showActions={showActions}
       isEditing={isEditing}
       onCellClick={startEditing}
+      onDoubleClick={onOpen}
       onContextMenu={(e) => {
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, [
-          { label: 'Add New Client', icon: <Plus className="h-4 w-4" />, onClick: onAddNew },
+          { label: 'Open', icon: <ExternalLink className="h-4 w-4" />, onClick: onOpen },
+          { label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => startEditing('name') },
           { label: 'Duplicate', icon: <Copy className="h-4 w-4" />, onClick: onDuplicate },
           { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: onDelete },
         ]);
       }}
-      actions={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onPointerDown={(e) => { e.preventDefault(); onNavigate(); }}
-        >
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
-      }
+      actions={<span className="text-xs text-muted-foreground/50 pr-2">{index}</span>}
     />
-  );
-}
-
-// ── Client row: Projects cell (read-only) ────────────────────────────────────
-
-export function ClientProjectsCell({ clientId, count }: { clientId: string; count: number }) {
-  return count > 0 ? (
-    <Link href={`/dashboard/clients/${clientId}`} className="text-primary hover:underline text-sm">
-      {count}
-    </Link>
-  ) : (
-    <span className="text-muted-foreground text-sm">0</span>
   );
 }

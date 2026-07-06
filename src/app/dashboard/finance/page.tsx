@@ -13,10 +13,12 @@ import { SortIcon } from '@/components/dashboard/SortIcon';
 import { StatsGrid } from '@/components/dashboard/StatsGrid';
 import { TableSearchBar } from '@/components/dashboard/TableSearchBar';
 import { InvoiceInlineRow } from '@/components/invoices/InvoiceInlineRow';
+import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { InvoiceRow, INVOICE_COLUMNS } from '@/components/invoices/InvoiceRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { downloadInvoicePDF } from '@/lib/pdf/downloadInvoicePDF';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
 import {
   Table,
@@ -30,6 +32,7 @@ import { useClients } from '@/hooks/useClients';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { formatIDR } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'draft' | 'sent' | 'paid' | 'overdue';
@@ -45,9 +48,11 @@ export default function FinancePage() {
   const { invoices, loading, add, edit, remove } = useInvoices();
   const { clients } = useClients();
   const { projects } = useProjects();
+  const { userProfile } = useAuth();
 
   const [addingRow, setAddingRow] = useState(false);
   const [addingClientInline, setAddingClientInline] = useState(false);
+  const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sortField, setSortField] = useState<SortField>('recent');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -164,8 +169,12 @@ export default function FinancePage() {
     setDownloading((prev) => ({ ...prev, [invoice.id]: true }));
     try {
       const client = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) ?? null : null;
-      const project = invoice.projectId ? projects.find((p) => p.id === invoice.projectId) : null;
-      await downloadInvoicePDF({ invoice, client, projectTitle: project?.title });
+      await downloadInvoicePDF({
+        invoice,
+        client,
+        userProfile,
+        terms: invoice.terms,
+      });
       toast.success('PDF downloaded');
     } catch (err) {
       console.error(err);
@@ -248,7 +257,12 @@ export default function FinancePage() {
                 <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">
                   Due Date <SortIcon field="due" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="select-none text-xs font-medium text-[var(--text-tertiary)]">Status</TableHead>
+                <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">
+                  Status
+                </TableHead>
+                <TableHead className="select-none text-xs font-medium text-[var(--text-tertiary)]">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -267,6 +281,7 @@ export default function FinancePage() {
                   onDuplicate={() => handleDuplicate(inv)}
                   onAddNew={() => setAddingRow(true)}
                   onAddClient={() => setAddingClientInline(true)}
+                  onPreview={() => setPreviewInvoiceId(inv.id)}
                   onDownloadPDF={() => handleDownloadPDF(inv)}
                   onSendWhatsApp={() => handleSendWhatsApp(inv)}
                   downloading={downloading[inv.id]}
@@ -280,6 +295,42 @@ export default function FinancePage() {
             onClose={() => setAddingClientInline(false)}
             onCreated={(clientId) => setAddingClientInline(false)}
           />
+
+          {/* Invoice Preview Dialog */}
+          <Dialog open={!!previewInvoiceId} onOpenChange={(open) => !open && setPreviewInvoiceId(null)}>
+            <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-6">
+              {previewInvoiceId && (() => {
+                const inv = invoices.find((i) => i.id === previewInvoiceId);
+                if (!inv) return null;
+                const client = inv.clientId ? clients.find((c) => c.id === inv.clientId) ?? null : null;
+                return (
+                  <InvoicePreview
+                    invoiceNumber={inv.invoiceNumber}
+                    clientName={client?.name ?? ''}
+                    clientCompany={client?.company}
+                    clientEmail={client?.email}
+                    clientWhatsapp={client?.whatsapp}
+                    dueDate={inv.dueDate.toDate()}
+                    issueDate={inv.createdAt?.toDate()}
+                    status={inv.status}
+                    items={inv.items ?? []}
+                    tax={inv.tax ?? 0}
+                    discount={inv.discount ?? 0}
+                    notes={inv.notes}
+                    terms={inv.terms}
+                    userName={userProfile?.name}
+                    userCompany={userProfile?.company}
+                    userPhone={userProfile?.phone}
+                    userAddress={userProfile?.address}
+                    userLogo={userProfile?.logo}
+                    bankDetails={userProfile?.bankDetails}
+                    onDownloadPDF={() => handleDownloadPDF(inv)}
+                    onSendWhatsApp={() => handleSendWhatsApp(inv)}
+                  />
+                );
+              })()}
+            </DialogContent>
+          </Dialog>
 
           {/* Pagination */}
           {totalPages > 1 && (

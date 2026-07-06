@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Pencil } from 'lucide-react';
 import type { ReactNode, MouseEvent } from 'react';
+import { Pencil } from 'lucide-react';
 
 import { TableCell, TableRow } from '@/components/ui/table';
 import { ClientSelectCell } from './cells/SelectCell';
@@ -21,7 +21,9 @@ interface EditableRowProps<T extends string> {
   cells: CellDef<T>[];
   index: number;
   onContextMenu?: (e: MouseEvent) => void;
+  onDoubleClick?: () => void;
   actions?: ReactNode;
+  showActions?: boolean;
   rowHeight?: string;
   isEditing?: (key: T) => boolean;
   onCellClick?: (key: T) => void;
@@ -31,15 +33,18 @@ export function EditableRow<T extends string>({
   cells,
   index,
   onContextMenu,
+  onDoubleClick,
   actions,
+  showActions = true,
   rowHeight = 'h-12',
   isEditing,
   onCellClick,
 }: EditableRowProps<T>) {
   return (
     <TableRow
-      className={`border-b border-border hover:bg-accent/50 ${rowHeight}`}
+      className="border-b border-border hover:bg-accent/50 cursor-pointer transition-colors duration-150 group"
       onContextMenu={onContextMenu}
+      onDoubleClick={onDoubleClick}
     >
       <TableCell className="w-8 border-r border-border py-2 pl-4 pr-2 text-muted-foreground text-sm h-full shrink-0">
         {index}
@@ -61,9 +66,11 @@ export function EditableRow<T extends string>({
           </div>
         </TableCell>
       ))}
-      <TableCell className="w-10 py-2 pr-4 h-full shrink-0">
-        {actions}
-      </TableCell>
+      {showActions && (
+        <TableCell className="w-10 py-2 pr-4 h-full shrink-0">
+          {actions}
+        </TableCell>
+      )}
     </TableRow>
   );
 }

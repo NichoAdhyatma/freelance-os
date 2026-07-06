@@ -26,11 +26,13 @@ import { LineItemsEditor } from './LineItemsEditor';
 import { InvoicePreview } from './InvoicePreview';
 import { useClients } from '@/hooks/useClients';
 import { useInvoices } from '@/hooks/useInvoices';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import type { InvoiceFormData, InvoiceItem, InvoiceStatus } from '@/types/invoice';
 import { downloadInvoicePDF } from '@/lib/pdf/downloadInvoicePDF';
 
 const DEFAULT_DUE_DATE = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+const DEFAULT_TERMS = 'Pembayaran harap dilakukan sesuai batas waktu yang tertera. Terima kasih atas kepercayaan Anda.';
 
 function generateInvoiceNumber(): string {
   const year = new Date().getFullYear();
@@ -42,13 +44,16 @@ export function InvoiceBuilder() {
   const router = useRouter();
   const { clients } = useClients();
   const { add } = useInvoices();
+  const { userProfile } = useAuth();
 
   const [invoiceNumber] = useState(() => generateInvoiceNumber());
   const [clientId, setClientId] = useState('');
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
+  const [issueDate] = useState<Date>(new Date());
   const [dueDate, setDueDate] = useState<Date>(DEFAULT_DUE_DATE);
   const [status, setStatus] = useState<InvoiceStatus>('draft');
   const [notes, setNotes] = useState('');
+  const [terms, setTerms] = useState(DEFAULT_TERMS);
   const [items, setItems] = useState<InvoiceItem[]>([
     { description: '', quantity: 1, unitPrice: 0, total: 0 },
   ]);
@@ -73,6 +78,7 @@ export function InvoiceBuilder() {
     discount,
     dueDate,
     notes: notes.trim() || undefined,
+    terms: terms.trim() || undefined,
     items: items.filter((item) => item.description.trim()),
     status: overrideStatus ?? status,
   });
@@ -114,7 +120,9 @@ export function InvoiceBuilder() {
       await downloadInvoicePDF({
         invoice: mockInvoice as any,
         client: selectedClient ?? null,
-        projectTitle: undefined,
+        userProfile,
+        issueDate,
+        terms,
       });
       toast.success('PDF downloaded');
     } catch {
@@ -215,9 +223,20 @@ export function InvoiceBuilder() {
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Payment terms, bank details, etc."
-            rows={4}
+            placeholder="Catatan untuk client."
+            rows={3}
             className="resize-none"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[var(--text-tertiary)]">Syarat & Ketentuan</Label>
+          <Textarea
+            value={terms}
+            onChange={(e) => setTerms(e.target.value)}
+            placeholder="Ketentuan pembayaran..."
+            rows={3}
+            className="resize-none text-xs"
           />
         </div>
 
@@ -258,12 +277,22 @@ export function InvoiceBuilder() {
             invoiceNumber={invoiceNumber}
             clientName={selectedClient?.name ?? ''}
             clientCompany={selectedClient?.company}
+            clientEmail={selectedClient?.email}
+            clientWhatsapp={selectedClient?.whatsapp}
             dueDate={dueDate}
+            issueDate={issueDate}
             status={status}
             items={items}
             tax={tax}
             discount={discount}
             notes={notes}
+            terms={terms}
+            userName={userProfile?.name}
+            userCompany={userProfile?.company}
+            userPhone={userProfile?.phone}
+            userAddress={userProfile?.address}
+            userLogo={userProfile?.logo}
+            bankDetails={userProfile?.bankDetails}
             onDownloadPDF={handleDownloadPDF}
             onSendWhatsApp={handleSendWhatsApp}
           />

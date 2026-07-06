@@ -10,7 +10,7 @@ import type { ClientFormData } from '@/types/client';
 
 interface ClientInlineRowProps {
   mode: 'add' | 'edit';
-  initialData?: { name?: string; email?: string; company?: string } | null;
+  initialData?: { name?: string; email?: string; company?: string; whatsapp?: string } | null;
   onSave: (data: ClientFormData) => Promise<void>;
   onCancel: () => void;
 }
@@ -19,44 +19,50 @@ export function ClientInlineRow({ mode, initialData, onSave, onCancel }: ClientI
   const [name, setName] = useState(initialData?.name ?? '');
   const [email, setEmail] = useState(initialData?.email ?? '');
   const [company, setCompany] = useState(initialData?.company ?? '');
+  const [whatsapp, setWhatsapp] = useState(initialData?.whatsapp ?? '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error('Name is required');
+      toast.error('Nama harus diisi');
       return;
     }
+
     setSaving(true);
     try {
       await onSave({
         name: name.trim(),
         email: email.trim() || undefined,
         company: company.trim() || undefined,
+        whatsapp: whatsapp.trim() || undefined,
       });
-      toast.success(mode === 'add' ? 'Client added' : 'Client updated');
+      toast.success(mode === 'add' ? 'Client ditambahkan' : 'Client diupdate');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save');
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <tr className="bg-muted/20 border-b border-border">
+    <tr className="bg-muted/30 border-b border-border">
       {/* # */}
-      <td className="w-8 border-r border-border py-2 pl-4 pr-2 text-muted-foreground text-sm">{mode === 'add' ? '+' : '✏️'}</td>
+      <td className="w-8 border-r border-border py-2 pl-4 pr-2 text-muted-foreground text-sm">
+        +
+      </td>
       {/* Name */}
       <td className="border-r border-border py-2 pr-2">
         <Input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Client name..."
+          placeholder="Nama client..."
           className="h-8 text-sm"
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Enter' && !saving) handleSave();
             if (e.key === 'Escape') onCancel();
           }}
+          disabled={saving}
         />
       </td>
       {/* Company */}
@@ -64,41 +70,70 @@ export function ClientInlineRow({ mode, initialData, onSave, onCancel }: ClientI
         <Input
           value={company}
           onChange={(e) => setCompany(e.target.value)}
-          placeholder="Company"
+          placeholder="Perusahaan"
           className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !saving) handleSave();
+            if (e.key === 'Escape') onCancel();
+          }}
+          disabled={saving}
         />
       </td>
-      {/* Contact */}
+      {/* Email */}
       <td className="border-r border-border py-2 pr-2">
         <Input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
+          placeholder="email@example.com"
           type="email"
           className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !saving) handleSave();
+            if (e.key === 'Escape') onCancel();
+          }}
+          disabled={saving}
         />
       </td>
-      {/* Projects */}
+      {/* WhatsApp */}
       <td className="border-r border-border py-2 pr-2">
-        <span className="text-muted-foreground text-xs">—</span>
-      </td>
-      {/* Revenue */}
-      <td className="py-2 pr-4">
-        <span className="text-muted-foreground text-xs">—</span>
+        <Input
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="+62 812 xxxx xxxx"
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !saving) handleSave();
+            if (e.key === 'Escape') onCancel();
+          }}
+          disabled={saving}
+        />
       </td>
       {/* Actions */}
       <td className="py-2 pr-4">
         <div className="flex items-center gap-1">
+          {/* preventDefault on pointerDown stops Input onBlur from firing */}
           <Button
             size="sm"
             variant="ghost"
             className="h-7 w-7 p-0"
+            onPointerDown={(e) => e.preventDefault()}
             onClick={handleSave}
             disabled={saving}
           >
-            <Check className="h-3.5 w-3.5 text-green-500" />
+            {saving ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
+            ) : (
+              <Check className="h-3.5 w-3.5 text-green-500" />
+            )}
           </Button>
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onCancel}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onCancel}
+            disabled={saving}
+          >
             <X className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         </div>

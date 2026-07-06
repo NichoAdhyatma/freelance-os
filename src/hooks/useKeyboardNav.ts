@@ -165,7 +165,7 @@ function matchesKey(shortcut: string, e: KeyboardEvent): boolean {
   const shiftMatch = hasShift ? e.shiftKey : !e.shiftKey;
   const ctrlMatch = hasCtrl ? e.ctrlKey : !e.ctrlKey;
   const altMatch = hasAlt ? e.altKey : !e.altKey;
-  const keyMatch = e.key.toLowerCase() === keyPart;
+  const keyMatch = e.key?.toLowerCase() === keyPart;
 
   return cmdMatch && shiftMatch && ctrlMatch && altMatch && keyMatch;
 }

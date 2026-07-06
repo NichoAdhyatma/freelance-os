@@ -16,6 +16,7 @@ export interface Invoice {
   dueDate: Timestamp;
   paidAt?: Timestamp;
   notes?: string;
+  terms?: string;
   items?: InvoiceItem[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -38,5 +39,6 @@ export interface InvoiceFormData {
   status?: InvoiceStatus;
   dueDate: Date;
   notes?: string;
+  terms?: string;
   items?: InvoiceItem[];
 }

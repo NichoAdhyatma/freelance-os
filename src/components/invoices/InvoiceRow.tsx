@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, Download, MoreHorizontal, Plus, Send, Trash2 } from 'lucide-react';
+import { Copy, Download, Eye, Plus, Send, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useState } from 'react';
@@ -13,13 +13,6 @@ import { SelectCell } from '@/components/shared/EditableRow/cells/SelectCell';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
@@ -53,6 +46,7 @@ export const INVOICE_COLUMNS = {
 interface InvoiceRowProps {
   invoice: Invoice;
   index: number;
+  showActions?: boolean;
   clients: Client[];
   projectTitle?: string;
   onSave: (id: string, data: Partial<InvoiceFormData>) => Promise<void>;
@@ -62,14 +56,16 @@ interface InvoiceRowProps {
   onAddClient: () => void;
   onDownloadPDF: () => void | Promise<void>;
   onSendWhatsApp: () => void;
+  onPreview: () => void;
   downloading?: boolean;
 }
 
-type CellKey = 'client' | 'project' | 'amount' | 'dueDate' | 'status';
+type CellKey = 'invoiceNumber' | 'client' | 'project' | 'amount' | 'dueDate' | 'status';
 
 export function InvoiceRow({
   invoice,
   index,
+  showActions = true,
   clients,
   projectTitle,
   onSave,
@@ -79,6 +75,7 @@ export function InvoiceRow({
   onAddClient,
   onDownloadPDF,
   onSendWhatsApp,
+  onPreview,
   downloading,
 }: InvoiceRowProps) {
   const { projects } = useProjects();
@@ -117,6 +114,17 @@ export function InvoiceRow({
   };
 
   const cells: CellDef<CellKey>[] = [
+    {
+      key: 'invoiceNumber',
+      width: INVOICE_COLUMNS.invoiceNumber,
+      display: (
+        <div className="w-full truncate px-2 py-1 rounded font-mono text-xs font-medium">
+          {invoice.invoiceNumber}
+        </div>
+      ),
+      edit: null,
+      editable: false,
+    },
     {
       key: 'client',
       width: INVOICE_COLUMNS.client,
@@ -245,6 +253,7 @@ export function InvoiceRow({
     <EditableRow
       cells={cells}
       index={index}
+      showActions={showActions}
       isEditing={isEditing}
       onCellClick={startEditing}
       onContextMenu={(e) => {
@@ -257,6 +266,9 @@ export function InvoiceRow({
       }}
       actions={
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" title="Preview Invoice" onClick={onPreview}>
+            <Eye className="h-3.5 w-3.5" />
+          </Button>
           <Button variant="ghost" size="icon" className="h-7 w-7" title="Send WhatsApp" onClick={onSendWhatsApp}>
             <Send className="h-3.5 w-3.5 text-green-500" />
           </Button>
@@ -267,22 +279,6 @@ export function InvoiceRow({
               <Download className="h-3.5 w-3.5" />
             )}
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="bg-background hover:bg-accent flex h-7 w-7 items-center justify-center rounded-md border">
-              <MoreHorizontal className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onDuplicate}>
-                <Copy className="mr-2 h-4 w-4" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       }
     />

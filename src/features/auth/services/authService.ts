@@ -125,12 +125,21 @@ export async function getUserProfile(uid: string) {
 
 export async function updateUserProfile(
   uid: string,
-  data: Partial<Pick<FirestoreUser, 'name' | 'avatar'>>,
+  data: Partial<Pick<FirestoreUser, 'name' | 'avatar' | 'company' | 'phone' | 'address' | 'logo' | 'bankDetails'>>,
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
+  // Filter out undefined values - Firestore doesn't accept undefined
+  const cleanData: Record<string, unknown> = {};
+  if (data.name !== undefined) cleanData.name = data.name;
+  if (data.avatar !== undefined) cleanData.avatar = data.avatar;
+  if (data.company !== undefined) cleanData.company = data.company;
+  if (data.phone !== undefined) cleanData.phone = data.phone;
+  if (data.address !== undefined) cleanData.address = data.address;
+  if (data.logo !== undefined) cleanData.logo = data.logo;
+  if (data.bankDetails !== undefined) cleanData.bankDetails = data.bankDetails;
   await updateDoc(doc(db, 'users', uid), {
-    ...data,
+    ...cleanData,
     updatedAt: Timestamp.now(),
   });
 }

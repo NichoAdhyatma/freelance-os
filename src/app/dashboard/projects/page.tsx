@@ -254,11 +254,13 @@ export default function ProjectsPage() {
                 >
                   Invoice
                 </TableHead>
-                <TableHead
-                  className={`select-none text-xs font-medium text-[var(--text-tertiary)] py-2 pr-4 ${PROJECT_COLUMNS.actions} shrink-0`}
-                >
-                  Actions
-                </TableHead>
+                {addingRow && (
+                  <TableHead
+                    className={`select-none text-xs font-medium text-[var(--text-tertiary)] py-2 pr-4 ${PROJECT_COLUMNS.actions} shrink-0`}
+                  >
+                    Actions
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,11 +278,12 @@ export default function ProjectsPage() {
                   key={project.id}
                   project={project}
                   index={start + idx}
+                  showActions={addingRow}
                   onSave={(data) => handleCellSave(project.id, data)}
                   onDelete={() => handleDelete(project.id)}
                   onDuplicate={() => handleDuplicate(project)}
                   onAddNew={() => { setPage(1); setAddingRow(true); setPendingClientId(null); }}
-                  onNavigate={() => router.push(`/dashboard/projects/${project.id}`)}
+                  onOpen={() => router.push(`/dashboard/projects/${project.id}`)}
                   onAddClient={() => setAddingClientInline(true)}
                   onAddInvoice={(projectId) => { setPendingProjectId(projectId); setAddingInvoiceInline(true); }}
                 />

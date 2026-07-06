@@ -5,7 +5,7 @@ import { createContext, type ReactNode, useContext, useEffect, useRef, useState 
 
 import { getUserProfile, updateUserProfile } from '@/features/auth/services/authService';
 import { getFirebaseAuth, isConfigured } from '@/lib/firebase/config';
-import { type User } from '@/types/user';
+import { type User, type BankDetails } from '@/types/user';
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -13,7 +13,15 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  updateProfile: (data: { name?: string; avatar?: string }) => Promise<void>;
+  updateProfile: (data: {
+    name?: string;
+    avatar?: string;
+    company?: string;
+    phone?: string;
+    address?: string;
+    logo?: string;
+    bankDetails?: BankDetails;
+  }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -78,7 +86,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   };
 
-  const handleUpdateProfile = async (data: { name?: string; avatar?: string }) => {
+  const handleUpdateProfile = async (data: {
+    name?: string;
+    avatar?: string;
+    company?: string;
+    phone?: string;
+    address?: string;
+    logo?: string;
+    bankDetails?: BankDetails;
+  }) => {
     if (!user) throw new Error('Not authenticated');
     await updateUserProfile(user.uid, data);
     await refreshProfile();

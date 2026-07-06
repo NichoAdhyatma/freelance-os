@@ -206,11 +206,14 @@ export default function ClientsPage() {
                 <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.company} shrink-0 overflow-hidden`}>
                   Company
                 </TableHead>
-                <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.contact} shrink-0 overflow-hidden`}>
-                  Contact
+                <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.email} shrink-0 overflow-hidden`}>
+                  Email
                 </TableHead>
-                <TableHead className={`select-none text-xs font-medium text-[var(--text-tertiary)] py-2 pr-4 ${CLIENT_COLUMNS.projects} shrink-0`}>
-                  Projects
+                <TableHead className={`select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)] py-2 pr-2 ${CLIENT_COLUMNS.whatsapp} shrink-0`}>
+                  WhatsApp
+                </TableHead>
+                <TableHead className={`select-none text-xs font-medium text-[var(--text-tertiary)] py-2 pr-4 ${CLIENT_COLUMNS.actions} shrink-0 ${addingRow ? '' : 'hidden'}`}>
+                  Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -223,12 +226,12 @@ export default function ClientsPage() {
                   key={client.id}
                   client={client}
                   index={start + idx}
-                  projectCount={clientProjectCount[client.id] || 0}
+                  showActions={addingRow}
                   onSave={async (id, data) => { await editClient(id, data); }}
                   onDelete={() => handleDelete(client.id)}
                   onDuplicate={() => handleDuplicate(client)}
                   onAddNew={() => setAddingRow(true)}
-                  onNavigate={() => router.push(`/dashboard/clients/${client.id}`)}
+                  onOpen={() => router.push(`/dashboard/clients/${client.id}`)}
                 />
               ))}
             </TableBody>

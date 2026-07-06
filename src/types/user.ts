@@ -9,6 +9,11 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
+  company?: string;
+  phone?: string;
+  address?: string;
+  logo?: string;
+  bankDetails?: BankDetails;
   plan: UserPlan;
   licenseKey?: string;
   licenseStatus: LicenseStatus;
@@ -16,8 +21,19 @@ export interface User {
   updatedAt: Timestamp;
 }
 
+export interface BankDetails {
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
+}
+
 export interface UserProfile {
   name: string;
   email: string;
   avatar?: string;
+  company?: string;
+  phone?: string;
+  address?: string;
+  logo?: string;
+  bankDetails?: BankDetails;
 }

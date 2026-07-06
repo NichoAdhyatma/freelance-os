@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { ArrowRight, CalendarIcon, Check, Copy, ExternalLink, FileText, Pencil, Plus, Trash2, User, X } from 'lucide-react';
+import { CalendarIcon, Check, Copy, ExternalLink, FileText, Pencil, Plus, Trash2, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -49,11 +49,12 @@ type CellKey = 'title' | 'client' | 'priority' | 'progress' | 'deadline' | 'invo
 interface ProjectRowProps {
   project: Project;
   index: number;
+  showActions?: boolean;
   onSave: (data: Partial<ProjectFormData> & { projectId?: string | null }) => Promise<void>;
   onDelete: () => void;
   onDuplicate: () => void;
   onAddNew: () => void;
-  onNavigate: () => void;
+  onOpen: () => void;
   onAddClient: () => void;
   onAddInvoice: (projectId: string) => void;
 }
@@ -61,11 +62,12 @@ interface ProjectRowProps {
 export function ProjectRow({
   project,
   index,
+  showActions = true,
   onSave,
   onDelete,
   onDuplicate,
   onAddNew,
-  onNavigate,
+  onOpen,
   onAddClient,
   onAddInvoice,
 }: ProjectRowProps) {
@@ -114,7 +116,7 @@ export function ProjectRow({
       key: 'title',
       width: PROJECT_COLUMNS.title,
       display: (
-        <div className="w-full truncate px-2 py-1 rounded font-medium hover:text-primary hover:bg-accent/50">
+        <div className="w-full truncate px-2 py-1 rounded font-medium">
           {project.title}
         </div>
       ),
@@ -131,7 +133,7 @@ export function ProjectRow({
       key: 'client',
       width: PROJECT_COLUMNS.client,
       display: (
-        <div className="w-full truncate px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50">
+        <div className="w-full truncate px-2 py-1 rounded text-sm text-muted-foreground">
           {displayClient ? clientDisplay(displayClient) : '—'}
         </div>
       ),
@@ -196,7 +198,7 @@ export function ProjectRow({
       key: 'deadline',
       width: PROJECT_COLUMNS.deadline,
       display: (
-        <div className="w-full truncate px-2 py-1 rounded text-sm hover:text-foreground hover:bg-accent/50">
+        <div className="w-full truncate px-2 py-1 rounded text-sm">
           {isOverdue && <span className="h-2 w-2 rounded-full bg-red-500 shrink-0 inline-block mr-1" />}
           <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
             {deadline ? format(deadline, 'dd MMM yyyy') : '—'}
@@ -205,7 +207,7 @@ export function ProjectRow({
       ),
       edit: (
         <PopoverCell
-          className="flex flex-1 cursor-pointer items-center gap-1 px-2 py-1 rounded text-sm hover:text-foreground hover:bg-accent/50"
+          className="flex flex-1 cursor-pointer items-center gap-1 px-2 py-1 rounded text-sm"
           trigger={
             <span className={isOverdue ? 'text-red-400' : 'text-muted-foreground'}>
               {deadline ? format(deadline, 'dd MMM yyyy') : '—'}
@@ -244,7 +246,7 @@ export function ProjectRow({
             ))}
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">—</span>
+          <span className="text-xs text-muted-foreground/50">—</span>
         )
       ),
       edit: null,
@@ -256,25 +258,21 @@ export function ProjectRow({
     <EditableRow
       cells={cells}
       index={index}
+      showActions={showActions}
       isEditing={isEditing}
       onCellClick={startEditing}
+      onDoubleClick={onOpen}
       onContextMenu={(e) => {
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, [
-          { label: 'Add New Project', icon: <Plus className="h-4 w-4" />, onClick: onAddNew },
+          { label: 'Open', icon: <ExternalLink className="h-4 w-4" />, onClick: onOpen },
+          { label: 'Edit', icon: <Pencil className="h-4 w-4" />, onClick: () => startEditing('title') },
           { label: 'Duplicate', icon: <Copy className="h-4 w-4" />, onClick: onDuplicate },
           { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, destructive: true, onClick: onDelete },
         ]);
       }}
       actions={
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onPointerDown={(e) => { e.preventDefault(); onNavigate(); }}
-        >
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Button>
+        <span className="text-xs text-muted-foreground/50 pr-2">{index}</span>
       }
     />
   );
