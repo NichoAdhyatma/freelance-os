@@ -252,7 +252,7 @@ export default function FinancePage() {
                 <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">Client</TableHead>
                 <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">Project</TableHead>
                 <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">
-                  Amount <SortIcon field="amount" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
+                  Items
                 </TableHead>
                 <TableHead className="select-none text-xs font-medium border-r border-[var(--border-default)] text-[var(--text-tertiary)]">
                   Due Date <SortIcon field="due" sortField={sortField || ''} sortDir={sortDir} onSort={handleSort} />
@@ -284,6 +284,7 @@ export default function FinancePage() {
                   onPreview={() => setPreviewInvoiceId(inv.id)}
                   onDownloadPDF={() => handleDownloadPDF(inv)}
                   onSendWhatsApp={() => handleSendWhatsApp(inv)}
+                  onEditItems={() => router.push(`/dashboard/invoices/${inv.id}`)}
                   downloading={downloading[inv.id]}
                 />
               ))}

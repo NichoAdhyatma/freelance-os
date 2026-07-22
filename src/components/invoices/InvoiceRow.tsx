@@ -1,23 +1,21 @@
 'use client';
 
-import { Copy, Download, Eye, Plus, Send, Trash2 } from 'lucide-react';
+import { Copy, Download, Eye, Plus, Send, Trash2, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
-import { EditableRow, type CellDef, useEditableRow } from '@/components/shared/EditableRow';
+import { EditableRow, type CellDef } from '@/components/shared/EditableRow';
 import { ClientSelectCell } from '@/components/shared/EditableRow/cells/SelectCell';
 import { PopoverCell } from '@/components/shared/EditableRow/cells/PopoverCell';
 import { SelectCell } from '@/components/shared/EditableRow/cells/SelectCell';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Input } from '@/components/ui/input';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { openContextMenu } from '@/components/shared/RowContextMenu';
 import { useProjects } from '@/hooks/useProjects';
-import { formatIDR } from '@/lib/utils';
 import { getStatusStyle, INVOICE_STATUS_CONFIG, INVOICE_STATUS_LABELS } from '@/lib/tokens';
 import type { Invoice, InvoiceFormData, InvoiceStatus } from '@/types/invoice';
 import type { Client } from '@/types/client';
@@ -57,6 +55,7 @@ interface InvoiceRowProps {
   onDownloadPDF: () => void | Promise<void>;
   onSendWhatsApp: () => void;
   onPreview: () => void;
+  onEditItems: () => void;
   downloading?: boolean;
 }
 
@@ -76,42 +75,28 @@ export function InvoiceRow({
   onDownloadPDF,
   onSendWhatsApp,
   onPreview,
+  onEditItems,
   downloading,
 }: InvoiceRowProps) {
   const { projects } = useProjects();
+  const router = useRouter();
   const dueDate = invoice.dueDate.toDate();
   const isOverdue = dueDate < new Date() && invoice.status !== 'paid' && invoice.status !== 'cancelled';
 
   const [editingCell, setEditingCell] = useState<CellKey | null>(null);
-  const [editAmount, setEditAmount] = useState(String(invoice.amount));
 
-  const { isEditing, startEditing, revertCell } = useEditableRow<CellKey>({
-    editingCell,
-    setEditingCell,
-    onSwitchCell: async (key) => {
-      if (key === 'amount') {
-        const num = Number(editAmount.replace(/\D/g, ''));
-        if (!isNaN(num) && num > 0) {
-          await onSave(invoice.id, { amount: num });
-        }
-      }
-    },
-    resetEditState: (key) => {
-      if (key === 'amount') setEditAmount(String(invoice.amount));
-    },
-  });
+  const handleCellClick = (key: CellKey) => {
+    if (key === 'amount') {
+      onEditItems();
+      return;
+    }
+    setEditingCell(key);
+  };
 
   const clientDisplay = (c: Client) => c.company ? `${c.name} — ${c.company}` : c.name;
   const displayClient = invoice.clientId ? clients.find((c) => c.id === invoice.clientId) : null;
   const clientProjects = projects.filter((p) => p.clientId === invoice.clientId);
   const displayProject = invoice.projectId ? clientProjects.find((p) => p.id === invoice.projectId) : null;
-
-  const handleSaveAmount = async () => {
-    const num = Number(editAmount.replace(/\D/g, ''));
-    if (isNaN(num) || num <= 0) { toast.error('Invalid amount'); return; }
-    await onSave(invoice.id, { amount: num });
-    setEditingCell(null);
-  };
 
   const cells: CellDef<CellKey>[] = [
     {
@@ -139,7 +124,7 @@ export function InvoiceRow({
           clients={clients}
           onChange={(v) => onSave(invoice.id, { clientId: v || undefined }).then(() => setEditingCell(null))}
           onAddNew={onAddClient}
-          onTriggerEdit={() => startEditing('client')}
+          onTriggerEdit={() => setEditingCell('client')}
         />
       ),
     },
@@ -159,7 +144,7 @@ export function InvoiceRow({
             ...clientProjects.map((p) => ({ value: p.id, label: p.title })),
           ]}
           onChange={(v) => onSave(invoice.id, { projectId: v || undefined }).then(() => setEditingCell(null))}
-          onTriggerEdit={() => startEditing('project')}
+          onTriggerEdit={() => setEditingCell('project')}
         />
       ),
     },
@@ -167,27 +152,15 @@ export function InvoiceRow({
       key: 'amount',
       width: INVOICE_COLUMNS.amount,
       display: (
-        <div className="w-full truncate px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50">
-          {formatIDR(invoice.amount)}
+        <div className="w-full flex items-center gap-1.5 truncate px-2 py-1 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors">
+          <span className="truncate">
+            {invoice.items?.length ? `${invoice.items.length} item${invoice.items.length !== 1 ? 's' : ''}` : '0 items'}
+          </span>
+          <ArrowUpRight className="h-3 w-3 shrink-0 opacity-50" />
         </div>
       ),
-      edit: (
-        <div className="relative">
-          <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-sm text-muted-foreground">Rp</span>
-          <Input
-            autoFocus
-            value={editAmount ? Number(editAmount).toLocaleString('id-ID') : ''}
-            onChange={(e) => setEditAmount(e.target.value.replace(/\D/g, ''))}
-            inputMode="numeric"
-            className="h-8 w-36 pl-8 text-sm"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleSaveAmount(); }
-              if (e.key === 'Escape') { e.preventDefault(); revertCell('amount'); }
-            }}
-            onBlur={handleSaveAmount}
-          />
-        </div>
-      ),
+      edit: null,
+      editable: true,
     },
     {
       key: 'dueDate',
@@ -218,7 +191,7 @@ export function InvoiceRow({
               disabled={(d) => d < new Date('2020-01-01')}
             />
           }
-          onTriggerEdit={() => startEditing('dueDate')}
+          onTriggerEdit={() => setEditingCell('dueDate')}
         />
       ),
     },
@@ -243,7 +216,7 @@ export function InvoiceRow({
             return { value: o.value, label: o.label, style: { background: dotStyle.style?.background } };
           })}
           onChange={(v) => onSave(invoice.id, { status: v as InvoiceStatus }).then(() => setEditingCell(null))}
-          onTriggerEdit={() => startEditing('status')}
+          onTriggerEdit={() => setEditingCell('status')}
         />
       ),
     },
@@ -254,8 +227,8 @@ export function InvoiceRow({
       cells={cells}
       index={index}
       showActions={showActions}
-      isEditing={isEditing}
-      onCellClick={startEditing}
+      isEditing={(key) => editingCell === key}
+      onCellClick={handleCellClick}
       onContextMenu={(e) => {
         e.preventDefault();
         openContextMenu(e.clientX, e.clientY, [

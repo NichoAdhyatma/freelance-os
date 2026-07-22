@@ -14,7 +14,7 @@ function ActivateLoadingFallback() {
           <div className="h-3 w-24 rounded bg-white/5" />
           <div className="h-12 rounded-xl border border-white/10 bg-white/5" />
         </div>
-        <div className="h-11 rounded-xl bg-amber-400/10" />
+        <div className="h-11 rounded-xl bg-blue-600/10" />
         <div className="flex items-center gap-2">
           <div className="h-px flex-1 border-t border-white/5" />
           <div className="h-3 w-8 rounded bg-white/5" />

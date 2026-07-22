@@ -1,0 +1,336 @@
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+
+import { setDashboardTitle } from '@/app/dashboard/_context';
+import { InvoiceBuilder } from '@/components/invoices/InvoiceBuilder';
+import { LineItemsEditor } from '@/components/invoices/LineItemsEditor';
+import { InvoicePreview } from '@/components/invoices/InvoicePreview';
+import { PageSkeleton } from '@/components/ui/DataTableSkeleton';
+import { CalendarIcon, Check, ChevronDown, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useClients } from '@/hooks/useClients';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { cn } from '@/lib/utils';
+import type { InvoiceFormData, InvoiceItem, InvoiceStatus } from '@/types/invoice';
+import { downloadInvoicePDF } from '@/lib/pdf/downloadInvoicePDF';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
+
+export default function InvoiceEditPage() {
+  const params = useParams();
+  const router = useRouter();
+  const invoiceId = params.id as string;
+
+  const { invoices, loading, edit } = useInvoices();
+  const { clients } = useClients();
+  const { userProfile } = useAuth();
+
+  const [loadingData, setLoadingData] = useState(true);
+  const [clientId, setClientId] = useState('');
+  const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
+  const [dueDate, setDueDate] = useState<Date>(new Date());
+  const [status, setStatus] = useState<InvoiceStatus>('draft');
+  const [notes, setNotes] = useState('');
+  const [terms, setTerms] = useState('Pembayaran harap dilakukan sesuai batas waktu yang tertera. Terima kasih atas kepercayaan Anda.');
+  const [items, setItems] = useState<InvoiceItem[]>([
+    { description: '', quantity: 1, unitPrice: 0, total: 0 },
+  ]);
+  const [tax, setTax] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [saving, setSaving] = useState(false);
+
+  const invoice = invoices.find((i) => i.id === invoiceId);
+  const selectedClient = clients.find((c) => c.id === clientId);
+  const grandTotal = items.reduce((sum, item) => sum + item.total, 0) + tax - discount;
+
+  useEffect(() => {
+    if (!loading && invoice) {
+      setClientId(invoice.clientId || '');
+      setDueDate(invoice.dueDate.toDate());
+      setStatus(invoice.status);
+      setNotes(invoice.notes || '');
+      setTerms(invoice.terms || 'Pembayaran harap dilakukan sesuai batas waktu yang tertera. Terima kasih atas kepercayaan Anda.');
+      setItems(invoice.items?.length ? invoice.items : [{ description: '', quantity: 1, unitPrice: 0, total: 0 }]);
+      setTax(invoice.tax ?? 0);
+      setDiscount(invoice.discount ?? 0);
+      setLoadingData(false);
+    }
+  }, [loading, invoice]);
+
+  useEffect(() => {
+    if (!loading && !invoice && invoiceId) {
+      toast.error('Invoice not found');
+      router.push('/dashboard/finance');
+    }
+  }, [loading, invoice, invoiceId, router]);
+
+  if (loading || loadingData) {
+    setDashboardTitle('Edit Invoice');
+    return <PageSkeleton showSearch={false} />;
+  }
+
+  if (!invoice) {
+    return null;
+  }
+
+  const validate = () => {
+    if (!clientId.trim()) { toast.error('Pilih client terlebih dahulu'); return false; }
+    const hasItems = items.some((item) => item.description.trim());
+    if (!hasItems) { toast.error('Tambahkan minimal 1 item dengan deskripsi'); return false; }
+    return true;
+  };
+
+  const buildFormData = (overrideStatus?: InvoiceStatus): InvoiceFormData => ({
+    clientId: clientId.trim(),
+    amount: grandTotal,
+    tax,
+    discount,
+    dueDate,
+    notes: notes.trim() || undefined,
+    terms: terms.trim() || undefined,
+    items: items.filter((item) => item.description.trim()),
+    status: overrideStatus ?? status,
+  });
+
+  const handleSave = async (saveStatus?: 'draft' | 'sent') => {
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      const data = buildFormData(saveStatus);
+      await edit(invoiceId, data);
+      toast.success('Invoice updated');
+      if (saveStatus) {
+        router.push('/dashboard/finance');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan invoice');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const mockInvoice = {
+    id: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    clientId,
+    amount: grandTotal,
+    tax,
+    discount,
+    status: status as InvoiceStatus,
+    dueDate: { toDate: () => dueDate } as any,
+    notes: notes || undefined,
+    items: items.filter((item) => item.description.trim()),
+    createdAt: invoice.createdAt,
+    updatedAt: { toDate: () => new Date() } as any,
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!clientId) { toast.error('Pilih client terlebih dahulu'); return; }
+    try {
+      await downloadInvoicePDF({
+        invoice: mockInvoice as any,
+        client: selectedClient ?? null,
+        userProfile,
+        issueDate: invoice.createdAt.toDate(),
+        terms,
+      });
+      toast.success('PDF downloaded');
+    } catch {
+      toast.error('Gagal generate PDF');
+    }
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!selectedClient) { toast.error('Pilih client terlebih dahulu'); return; }
+    if (!selectedClient.whatsapp) { toast.error('Client ini belum memiliki nomor WhatsApp'); return; }
+    const waNumber = selectedClient.whatsapp.replace(/\D/g, '');
+    const message = `Halo ${selectedClient.name}!\n\nBerikut invoice untuk pekerjaan yang telah diselesaikan:\n\n📄 *${invoice.invoiceNumber}*\n💰 *Total: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(grandTotal)}*\n📅 *Jatuh Tempo: ${format(dueDate, 'dd MMMM yyyy', { locale: id })}*\n\nMohon melakukan pembayaran sebelum jatuh tempo.\n\n—\nDikirim via Freelancer OS`;
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  return (
+    <div className="flex h-full gap-6">
+      {/* Panel 1: Meta */}
+      <div className="w-72 shrink-0 flex flex-col gap-5 overflow-y-auto">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[var(--text-tertiary)]">Invoice Number</Label>
+          <Input value={invoice.invoiceNumber} readOnly className="font-mono text-sm bg-[var(--surface-base)]" />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[var(--text-tertiary)]">Client *</Label>
+          <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+            <PopoverTrigger>
+              <div
+                role="combobox"
+                className={cn(
+                  'w-full flex items-center justify-start h-10 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors',
+                  !clientId && 'text-muted-foreground',
+                )}
+              >
+                <User className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate flex-1">
+                  {clientId ? (selectedClient?.name ?? 'Select client') : 'Select client'}
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-50 ml-auto" />
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Search clients..." autoFocus />
+                <CommandList>
+                  <CommandEmpty>{clients.length === 0 ? 'No clients yet.' : 'No client found.'}</CommandEmpty>
+                  <CommandGroup>
+                    {clients.map((client) => (
+                      <CommandItem
+                        key={client.id}
+                        value={client.id}
+                        onSelect={() => { setClientId(client.id); setClientPopoverOpen(false); }}
+                        className="flex items-center gap-2"
+                      >
+                        <Check className={cn('h-4 w-4 shrink-0', clientId === client.id ? 'opacity-100' : 'opacity-0')} />
+                        <span className="truncate">{client.name}{client.company && <span className="text-muted-foreground ml-1 text-xs">· {client.company}</span>}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[var(--text-tertiary)]">Due Date</Label>
+          <Popover>
+            <PopoverTrigger>
+              <div className="w-full flex items-center h-10 px-3 rounded-md border border-input bg-background text-sm cursor-pointer hover:bg-muted transition-colors">
+                <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                {format(dueDate, 'dd MMM yyyy', { locale: id })}
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dueDate} onSelect={(d) => d && setDueDate(d)} />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[var(--text-tertiary)]">Status</Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as InvoiceStatus)}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="sent">Sent</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5 flex-1">
+          <Label className="text-xs text-[var(--text-tertiary)]">Notes</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Catatan untuk client."
+            rows={3}
+            className="resize-none"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-[var(--text-tertiary)]">Syarat & Ketentuan</Label>
+          <Textarea
+            value={terms}
+            onChange={(e) => setTerms(e.target.value)}
+            placeholder="Ketentuan pembayaran..."
+            rows={3}
+            className="resize-none text-xs"
+          />
+        </div>
+
+        {/* Save buttons */}
+        <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-default)]">
+          <Button onClick={() => handleSave('draft')} disabled={saving} size="sm" className="w-full">
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+          <Button onClick={() => handleSave('sent')} disabled={saving} variant="outline" size="sm" className="w-full">
+            Save & Mark as Sent
+          </Button>
+          <Button onClick={() => router.push('/dashboard/finance')} variant="ghost" size="sm" className="w-full">
+            Cancel
+          </Button>
+        </div>
+      </div>
+
+      {/* Panel 2: Line Items */}
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Line Items</h3>
+          <span className="text-xs text-[var(--text-tertiary)]">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="flex-1 overflow-y-auto pr-1">
+          <LineItemsEditor
+            items={items}
+            onChange={setItems}
+            tax={tax}
+            discount={discount}
+            onTaxChange={setTax}
+            onDiscountChange={setDiscount}
+          />
+        </div>
+      </div>
+
+      {/* Panel 3: Preview */}
+      <div className="w-80 shrink-0 flex flex-col overflow-hidden">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Preview</h3>
+        <div className="flex-1 overflow-hidden">
+          <InvoicePreview
+            invoiceNumber={invoice.invoiceNumber}
+            clientName={selectedClient?.name ?? ''}
+            clientCompany={selectedClient?.company}
+            clientEmail={selectedClient?.email}
+            clientWhatsapp={selectedClient?.whatsapp}
+            dueDate={dueDate}
+            issueDate={invoice.createdAt.toDate()}
+            status={status}
+            items={items}
+            tax={tax}
+            discount={discount}
+            notes={notes}
+            terms={terms}
+            userName={userProfile?.name}
+            userCompany={userProfile?.company}
+            userPhone={userProfile?.phone}
+            userAddress={userProfile?.address}
+            userLogo={userProfile?.logo}
+            bankDetails={userProfile?.bankDetails}
+            onDownloadPDF={handleDownloadPDF}
+            onSendWhatsApp={handleSendWhatsApp}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

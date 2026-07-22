@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 
-import { getAdminDb } from '@/lib/firebase/admin';
+import { getAdminDb, getAdminAuth } from '@/lib/firebase/admin';
 import { LICENSE_KEY_REGEX, PLAN_FROM_LICENSE } from '@/lib/firebase/constants';
 import { type LicensePlan } from '@/lib/firebase/constants';
 
 async function verifyToken(authHeader: string | null) {
   if (!authHeader?.startsWith('Bearer ')) return null;
   try {
-    const { getAdminAuth } = await import('@/lib/firebase/admin');
     const auth = getAdminAuth();
     return await auth.verifyIdToken(authHeader.slice(7));
   } catch {
@@ -17,15 +16,14 @@ async function verifyToken(authHeader: string | null) {
 
 async function findLicenseByKey(normalizedKey: string): Promise<any | null> {
   const db = getAdminDb();
+  const snapshot = await db.collection('licenses').where('key', '==', normalizedKey).limit(1).get();
 
-  const snapshot = await db.collection('licenses').where('key', '==', normalizedKey).get();
-
-  if (!snapshot.empty) {
-    const doc = snapshot.docs[0];
-    return { id: doc.id, ...doc.data() };
+  if (snapshot.empty) {
+    return null;
   }
 
-  return null;
+  const doc = snapshot.docs[0];
+  return { id: doc.id, ...doc.data() };
 }
 
 export async function POST(request: Request) {
@@ -50,7 +48,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'licenseKey is required' }, { status: 400 });
   }
 
-  // Validate format
   const normalizedKey = licenseKey.toUpperCase().replace(/\s/g, '');
   if (!LICENSE_KEY_REGEX.test(normalizedKey)) {
     return NextResponse.json(
@@ -59,53 +56,57 @@ export async function POST(request: Request) {
     );
   }
 
-  // Find and validate license
-  const license = await findLicenseByKey(normalizedKey);
+  try {
+    const license = await findLicenseByKey(normalizedKey);
 
-  if (!license) {
-    return NextResponse.json({ valid: false, message: 'License key not found.' }, { status: 404 });
-  }
+    if (!license) {
+      return NextResponse.json({ valid: false, message: 'License key not found.' }, { status: 404 });
+    }
 
-  const status = license.status as string;
-  if (status === 'revoked' || status === 'expired') {
-    return NextResponse.json(
-      { valid: false, message: `This license has been ${status}.` },
-      { status: 403 },
+    const status = license.status as string;
+    if (status === 'revoked' || status === 'expired') {
+      return NextResponse.json(
+        { valid: false, message: `This license has been ${status}.` },
+        { status: 403 },
+      );
+    }
+    if (status === 'activated') {
+      return NextResponse.json(
+        { valid: false, message: 'This license has already been activated.' },
+        { status: 409 },
+      );
+    }
+
+    const licenseType = license.type as string;
+    const plan: LicensePlan = PLAN_FROM_LICENSE[licenseType.toUpperCase()] ?? 'pro';
+
+    const db = getAdminDb();
+    await db.collection('licenses').doc(license.id).update({
+      status: 'activated',
+      activatedBy: uid,
+      activatedAt: new Date(),
+    });
+
+    await db.collection('users').doc(uid).set(
+      {
+        licenseKey: normalizedKey,
+        licenseStatus: 'active',
+        plan,
+        updatedAt: new Date(),
+      },
+      { merge: true },
     );
-  }
-  if (status === 'activated') {
-    return NextResponse.json(
-      { valid: false, message: 'This license has already been activated.' },
-      { status: 409 },
-    );
-  }
 
-  // Determine plan
-  const licenseType = license.type as string;
-  const plan: LicensePlan = PLAN_FROM_LICENSE[licenseType.toUpperCase()] ?? 'pro';
-
-  // Activate license
-  const db = getAdminDb();
-  await db.collection('licenses').doc(license.id).update({
-    status: 'activated',
-    activatedBy: uid,
-    activatedAt: new Date(),
-  });
-
-  // Update user profile
-  await db.collection('users').doc(uid).set(
-    {
-      licenseKey: normalizedKey,
-      licenseStatus: 'active',
+    return NextResponse.json({
+      valid: true,
+      message: 'License activated successfully!',
       plan,
-      updatedAt: new Date(),
-    },
-    { merge: true },
-  );
-
-  return NextResponse.json({
-    valid: true,
-    message: 'License activated successfully!',
-    plan,
-  });
+    });
+  } catch (error: any) {
+    console.error('License activation error:', error);
+    return NextResponse.json(
+      { valid: false, message: `Server error: ${error?.message || 'Unknown error'}` },
+      { status: 500 },
+    );
+  }
 }

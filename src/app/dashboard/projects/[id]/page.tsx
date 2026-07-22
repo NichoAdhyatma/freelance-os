@@ -27,11 +27,13 @@ import {
   INVOICE_STATUS_LABELS,
 } from '@/lib/tokens';
 import { InvoiceForm } from '@/components/invoices/InvoiceForm';
+import { InvoicePreview } from '@/components/invoices/InvoicePreview';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { TaskForm } from '@/components/projects/TaskForm';
 import { TaskKanban, type TaskKanbanHandle } from '@/components/projects/TaskKanban';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -51,6 +53,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { formatIDR } from '@/lib/utils';
 import { setDashboardTitle } from '@/app/dashboard/_context';
 import { type Task, type TaskFormData } from '@/types/task';
+import { downloadInvoicePDF } from '@/lib/pdf/downloadInvoicePDF';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -62,6 +65,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const { projects, loading: projectsLoading, editProject } = useProjects();
   const { getClientById } = useClients();
   const { loading: authLoading } = useAuth();
+  const { userProfile } = useAuth();
   const kanbanRef = useRef<TaskKanbanHandle>(null);
   const { total: taskTotal, doneCount: taskDone, editTask } = useTasks({ projectId: id });
   const { invoices, remove: removeInvoice, markPaid, add: addInvoice } = useInvoices();
@@ -71,6 +75,7 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [defaultTaskStatus, setDefaultTaskStatus] = useState<Task['status']>('todo');
   const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
+  const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   const projectInvoices = invoices.filter((i) => i.projectId === id);
 
@@ -114,6 +119,23 @@ export default function ProjectDetailPage({ params }: PageProps) {
   const handleCreateInvoice = async (data: any) => {
     await addInvoice(data);
     toast.success('Invoice created');
+  };
+
+  const previewInvoice = previewInvoiceId ? invoices.find((i) => i.id === previewInvoiceId) : null;
+
+  const handleDownloadPDF = async (inv: typeof invoices[number]) => {
+    const invClient = inv.clientId ? getClientById(inv.clientId) : null;
+    try {
+      await downloadInvoicePDF({
+        invoice: inv,
+        client: invClient ?? null,
+        userProfile,
+        terms: inv.terms,
+      });
+      toast.success('PDF downloaded');
+    } catch {
+      toast.error('Gagal generate PDF');
+    }
   };
 
   // Invoice status badge
@@ -291,7 +313,11 @@ export default function ProjectDetailPage({ params }: PageProps) {
                   </TableHeader>
                   <TableBody>
                     {projectInvoices.map((inv) => (
-                      <TableRow key={inv.id}>
+                      <TableRow
+                        key={inv.id}
+                        className="cursor-pointer hover:bg-accent/50"
+                        onClick={() => setPreviewInvoiceId(inv.id)}
+                      >
                         <TableCell className="border-border border-r font-mono text-xs">
                           {inv.invoiceNumber}
                         </TableCell>
@@ -315,8 +341,9 @@ export default function ProjectDetailPage({ params }: PageProps) {
                               variant="ghost"
                               size="sm"
                               className="h-7 px-2 text-xs"
-                              onClick={async () => {
-                                await markPaid(inv.id, inv.amount);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markPaid(inv.id, inv.amount);
                                 toast.success('Invoice marked as paid');
                               }}
                             >
@@ -326,10 +353,22 @@ export default function ProjectDetailPage({ params }: PageProps) {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPDF(inv);
+                            }}
+                          >
+                            Download
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-7 px-2 text-xs text-red-500 hover:text-red-400"
-                            onClick={async () => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (!confirm('Delete this invoice?')) return;
-                              await removeInvoice(inv.id);
+                              removeInvoice(inv.id);
                               toast.success('Invoice deleted');
                             }}
                           >
@@ -446,6 +485,39 @@ export default function ProjectDetailPage({ params }: PageProps) {
         defaultClientId={project.clientId}
         defaultProjectId={id}
       />
+
+      {/* Invoice Preview Dialog */}
+      <Dialog open={!!previewInvoiceId} onOpenChange={(open) => !open && setPreviewInvoiceId(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-6">
+          {previewInvoice && (() => {
+            const invClient = previewInvoice.clientId ? getClientById(previewInvoice.clientId) : null;
+            return (
+              <InvoicePreview
+                invoiceNumber={previewInvoice.invoiceNumber}
+                clientName={invClient?.name ?? ''}
+                clientCompany={invClient?.company}
+                clientEmail={invClient?.email}
+                clientWhatsapp={invClient?.whatsapp}
+                dueDate={previewInvoice.dueDate.toDate()}
+                issueDate={previewInvoice.createdAt?.toDate()}
+                status={previewInvoice.status}
+                items={previewInvoice.items ?? []}
+                tax={previewInvoice.tax ?? 0}
+                discount={previewInvoice.discount ?? 0}
+                notes={previewInvoice.notes}
+                terms={previewInvoice.terms}
+                userName={userProfile?.name}
+                userCompany={userProfile?.company}
+                userPhone={userProfile?.phone}
+                userAddress={userProfile?.address}
+                userLogo={userProfile?.logo}
+                bankDetails={userProfile?.bankDetails}
+                onDownloadPDF={() => handleDownloadPDF(previewInvoice)}
+              />
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

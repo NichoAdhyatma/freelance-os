@@ -12,7 +12,7 @@ import { activateLicense, validateLicenseKey } from '@/features/license/services
 
 export default function ActivateForm() {
   const router = useRouter();
-  const { user, userProfile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
 
   const [licenseKey, setLicenseKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -74,14 +74,16 @@ export default function ActivateForm() {
       const result = await activateLicense(user.uid, licenseKey);
       if (result.valid) {
         setSuccess(true);
-        await refreshProfile();
-        setTimeout(() => router.push('/dashboard'), 2200);
+        // Set session cookie for middleware auth check
+        document.cookie = `session_token=${user.uid}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        // Navigate immediately - page reload will fetch fresh profile
+        setTimeout(() => router.push('/dashboard'), 1500);
       } else {
         setError(result.message);
+        setLoading(false);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to activate license');
-    } finally {
       setLoading(false);
     }
   };
@@ -102,31 +104,31 @@ export default function ActivateForm() {
           />
 
           {/* Ambient orbs */}
-          <div className="absolute -bottom-24 -left-12 h-80 w-80 rounded-full bg-amber-500/10 blur-3xl" />
-          <div className="absolute -right-8 top-16 h-64 w-64 rounded-full bg-amber-400/5 blur-3xl" />
+          <div className="absolute -bottom-24 -left-12 h-80 w-80 rounded-full bg-blue-600/10 blur-3xl" />
+          <div className="absolute -right-8 top-16 h-64 w-64 rounded-full bg-blue-500/5 blur-3xl" />
 
           {/* Decorative geometry */}
           <div className="absolute right-8 top-12">
             <div className="relative">
-              <div className="h-32 w-32 rotate-45 border border-amber-500/20" />
+              <div className="h-32 w-32 rotate-45 border border-blue-600/20" />
               <div className="absolute inset-4 -rotate-12 border border-white/10" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-8 w-8 rounded-full border border-amber-500/30" />
+                <div className="h-8 w-8 rounded-full border border-blue-600/30" />
               </div>
             </div>
           </div>
 
           <div className="absolute bottom-16 left-4">
-            <div className="h-20 w-px bg-gradient-to-b from-amber-500/40 to-transparent" />
-            <div className="ml-4 mt-2 h-px w-10 bg-gradient-to-r from-amber-500/20 to-transparent" />
+            <div className="h-20 w-px bg-gradient-to-b from-blue-600/40 to-transparent" />
+            <div className="ml-4 mt-2 h-px w-10 bg-gradient-to-r from-blue-600/20 to-transparent" />
           </div>
 
           {/* Content */}
           <div className="relative z-10 flex h-full flex-col justify-between p-12">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 backdrop-blur-sm">
-                <Sparkles className="h-5 w-5 text-amber-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-600/30 bg-blue-600/10 backdrop-blur-sm">
+                <Sparkles className="h-5 w-5 text-blue-500" />
               </div>
               <div>
                 <div className="font-semibold tracking-tight text-white">Freelancer OS</div>
@@ -141,7 +143,7 @@ export default function ActivateForm() {
               <h2 className="text-4xl font-bold leading-tight text-white">
                 One key.
                 <br />
-                <span className="text-amber-400">Full access.</span>
+                <span className="text-blue-500">Full access.</span>
               </h2>
               <p className="max-w-sm text-sm leading-relaxed text-white/50">
                 Enter your license key to unlock your workspace. The key determines your plan automatically.
@@ -154,7 +156,7 @@ export default function ActivateForm() {
                   <span className="text-xs text-white/40">Secure activation</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                   <span className="text-xs text-white/40">Instant access</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -173,8 +175,8 @@ export default function ActivateForm() {
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10">
-              <Sparkles className="h-4 w-4 text-amber-400" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-600/30 bg-blue-600/10">
+              <Sparkles className="h-4 w-4 text-blue-500" />
             </div>
             <span className="font-semibold tracking-tight text-white">Freelancer OS</span>
           </div>
@@ -229,7 +231,7 @@ export default function ActivateForm() {
                       value={licenseKey}
                       onChange={(e) => handleLicenseChange(e.target.value)}
                       disabled={loading || validating}
-                      className="h-12 pr-12 font-mono text-base tracking-wider bg-white/5 text-white placeholder:text-white/20 border-white/10 focus:border-amber-500/60 focus:bg-white/5 focus:ring-amber-500/20 data-[focus]:border-amber-500/60 data-[focus]:bg-white/5 data-[focus]:ring-amber-500/20"
+                      className="h-10 pr-12 font-mono text-base tracking-wider bg-white/5 text-white placeholder:text-white/20 border-white/10 focus:border-blue-600/60 focus:bg-white/5 focus:ring-blue-600/20 data-[focus]:border-blue-600/60 data-[focus]:bg-white/5 data-[focus]:ring-blue-600/20"
                     />
 
                     {/* Validation indicator */}
@@ -283,7 +285,7 @@ export default function ActivateForm() {
                     validationStatus === 'invalid' ||
                     validating
                   }
-                  className="h-11 w-full bg-amber-400 text-black font-semibold hover:bg-amber-300 active:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-xl"
+                  className="h-10 w-full bg-blue-600 text-white font-medium hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-lg"
                 >
                   {loading ? (
                     <>
@@ -303,7 +305,7 @@ export default function ActivateForm() {
                       href="https://lynk.id"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-amber-400/60 hover:text-amber-400 transition-colors"
+                      className="text-blue-500/60 hover:text-blue-500 transition-colors"
                     >
                       Purchase from Lynk.id
                     </a>

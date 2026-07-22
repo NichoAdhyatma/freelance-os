@@ -14,6 +14,27 @@ import { getIdToken, signOut } from 'firebase/auth';
 import { getFirebaseAuth } from '@/lib/firebase/config';
 import { type LicenseValidationResult } from '@/types/license';
 
+// Timeout wrapper for fetch
+async function fetchWithTimeout(url: string, options: RequestInit, timeout = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout. Please try again.');
+    }
+    throw error;
+  }
+}
+
 export async function activateLicense(
   _userId: string,
   licenseKey: string,
@@ -25,14 +46,14 @@ export async function activateLicense(
 
   let idToken: string;
   try {
-    idToken = await getIdToken(auth.currentUser, true);
+    idToken = await getIdToken(auth.currentUser, false);
   } catch {
     return { valid: false, message: 'Session expired. Please log in again.' };
   }
 
   let response: Response;
   try {
-    response = await fetch('/api/licenses/activate', {
+    response = await fetchWithTimeout('/api/licenses/activate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,7 +61,10 @@ export async function activateLicense(
       },
       body: JSON.stringify({ licenseKey }),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error) {
+      return { valid: false, message: error.message };
+    }
     return { valid: false, message: 'Network error. Please check your connection.' };
   }
 
@@ -61,12 +85,19 @@ export async function activateLicense(
 }
 
 export async function validateLicenseKey(licenseKey: string): Promise<LicenseValidationResult> {
-  const response = await fetch('/api/licenses/validate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ licenseKey }),
-  });
-  return response.json();
+  try {
+    const response = await fetchWithTimeout('/api/licenses/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey }),
+    });
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error) {
+      return { valid: false, message: error.message };
+    }
+    return { valid: false, message: 'Network error during validation.' };
+  }
 }
 
 export async function getLicenseByKey(licenseKey: string) {

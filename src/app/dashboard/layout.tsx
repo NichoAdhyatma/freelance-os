@@ -13,7 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <ProtectedRoute requireLicense={false}>
+    <ProtectedRoute requireLicense={true}>
       <ContextMenuLayer>
         <KeyboardNavProvider
           onToggleSidebar={() => setSidebarOpen((v) => !v)}

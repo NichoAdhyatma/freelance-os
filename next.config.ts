@@ -4,7 +4,6 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: [
       'firebase',
-      'firebase-admin',
       'framer-motion',
       'lucide-react',
       'jspdf',
@@ -15,6 +14,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: '/Users/nicho/Research/freelance-os',
   },
+  serverExternalPackages: ['firebase-admin'],
 };
 
 export default nextConfig;

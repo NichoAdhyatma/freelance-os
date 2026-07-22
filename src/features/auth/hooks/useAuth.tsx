@@ -63,6 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getUserProfile(firebaseUser.uid)
           .then((profile) => {
             setUserProfile(profile);
+            // Set session cookie if user has active license
+            if (profile?.licenseStatus === 'active') {
+              document.cookie = `session_token=${firebaseUser.uid}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+            }
           })
           .catch(() => {
             // Offline or failed — user is still authenticated
@@ -71,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (!firebaseUser) {
         profileFetched.current = false;
         setUserProfile(null);
+        // Clear session cookie on logout
+        document.cookie = 'session_token=; path=/; max-age=0';
       }
     });
 
@@ -79,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = async () => {
     profileFetched.current = false;
+    // Clear session cookie
+    document.cookie = 'session_token=; path=/; max-age=0';
     if (!isConfigured()) return;
     const auth = getFirebaseAuth();
     if (!auth) return;
